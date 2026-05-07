@@ -123,10 +123,14 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> updateProfile({String? name, String? photoUrl}) async {
+  Future<bool> updateProfile({String? name, String? photoUrl, String? newPhone}) async {
     if (_currentUser == null) return false;
-    final success = await DatabaseService().updateUserProfile(_currentUser!.phone, name: name, photoUrl: photoUrl);
+    final success = await DatabaseService().updateUserProfile(_currentUser!.phone, name: name, photoUrl: photoUrl, newPhone: newPhone);
     if (success) {
+      if (newPhone != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('phone', newPhone);
+      }
       await refreshUser();
     }
     return success;

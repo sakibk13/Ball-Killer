@@ -15,8 +15,20 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
+    if (user != null) {
+      _nameController.text = user.name;
+      _phoneController.text = user.phone;
+    }
+  }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -42,6 +54,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } finally {
         if (mounted) setState(() => _isProcessing = false);
       }
+    }
+  }
+
+  Future<void> _updateInfo() async {
+    if (_nameController.text.isEmpty || _phoneController.text.isEmpty) {
+      StatusDialog.show(context, isSuccess: false, title: "INVALID", message: "Name and Phone are required.");
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+    try {
+      final success = await Provider.of<AuthProvider>(context, listen: false).updateProfile(
+        name: _nameController.text,
+        newPhone: _phoneController.text,
+      );
+      if (mounted) {
+        StatusDialog.show(
+          context, 
+          isSuccess: success, 
+          title: success ? "SUCCESS" : "ERROR", 
+          message: success ? "Profile updated successfully!" : "Failed to update profile.",
+        );
+      }
+    } catch (e) {
+      if (mounted) StatusDialog.show(context, isSuccess: false, title: "ERROR", message: e.toString());
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -87,73 +126,119 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(30),
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                // Avatar Section
-                Center(
-                  child: Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.orange, width: 2)),
-                        child: CircleAvatar(
-                          radius: 60,
-                          backgroundColor: Colors.white10,
-                          backgroundImage: photoBytes != null ? MemoryImage(photoBytes) : null,
-                          child: photoBytes == null ? Text(user?.name[0].toUpperCase() ?? '?', style: GoogleFonts.bebasNeue(fontSize: 40, color: Colors.orange)) : null,
-                        ),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(30),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    // Avatar Section
+                    Center(
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle, 
+                              gradient: const LinearGradient(colors: [Colors.blueAccent, Colors.tealAccent]),
+                              boxShadow: [BoxShadow(color: Colors.blueAccent.withOpacity(0.2), blurRadius: 20)],
+                            ),
+                            child: CircleAvatar(
+                              radius: 65,
+                              backgroundColor: const Color(0xFF020C3B),
+                              backgroundImage: photoBytes != null ? MemoryImage(photoBytes) : null,
+                              child: photoBytes == null ? Text(user?.name[0].toUpperCase() ?? '?', style: GoogleFonts.bebasNeue(fontSize: 45, color: Colors.tealAccent)) : null,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _pickImage,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: const BoxDecoration(color: Colors.tealAccent, shape: BoxShape.circle),
+                              child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF020C3B), size: 22),
+                            ),
+                          ),
+                        ],
                       ),
-                      GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
-                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(height: 40),
+                    
+                    // Info Section
+                    _buildSectionHeader('PERSONAL INFORMATION'),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _nameController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDeco('Full Name', Icons.person_outline),
+                    ),
+                    const SizedBox(height: 15),
+                    TextField(
+                      controller: _phoneController,
+                      style: const TextStyle(color: Colors.white),
+                      keyboardType: TextInputType.phone,
+                      decoration: _inputDeco('Phone Number', Icons.phone_android_outlined),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _updateInfo,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.tealAccent, 
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          elevation: 0,
                         ),
+                        child: Text('SAVE CHANGES', style: GoogleFonts.bebasNeue(color: const Color(0xFF020C3B), fontSize: 18, letterSpacing: 1)),
                       ),
-                    ],
-                  ),
+                    ),
+                    
+                    const SizedBox(height: 50),
+                    
+                    // Settings Section
+                    _buildSectionHeader('SECURITY SETTINGS'),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDeco('New Password', Icons.lock_outline),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton(
+                        onPressed: _updatePassword,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white24),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        ),
+                        child: Text('CHANGE PASSWORD', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 18, letterSpacing: 1)),
+                      ),
+                    ),
+                    const SizedBox(height: 50),
+                    const Divider(color: Colors.white10),
+                    const SizedBox(height: 20),
+                    TextButton.icon(
+                      onPressed: () => Provider.of<AuthProvider>(context, listen: false).logout(),
+                      icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                      label: Text('LOGOUT ACCOUNT', style: GoogleFonts.bebasNeue(color: Colors.redAccent, fontSize: 16, letterSpacing: 1.5)),
+                    ),
+                    const SizedBox(height: 40),
+                  ],
                 ),
-                const SizedBox(height: 30),
-                Text(user?.name.toUpperCase() ?? '', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 28, letterSpacing: 1.5)),
-                Text(user?.phone ?? '', style: GoogleFonts.poppins(color: Colors.white38, fontSize: 14)),
-                
-                const SizedBox(height: 50),
-                
-                // Settings Section
-                _buildSectionHeader('SECURITY SETTINGS'),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _inputDeco('New Password', Icons.lock_outline),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: _updatePassword,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-                    child: Text('UPDATE PASSWORD', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 18, letterSpacing: 1)),
-                  ),
-                ),
-                const SizedBox(height: 40),
-                TextButton.icon(
-                  onPressed: () => Provider.of<AuthProvider>(context, listen: false).logout(),
-                  icon: const Icon(Icons.logout, color: Colors.redAccent),
-                  label: Text('LOGOUT ACCOUNT', style: GoogleFonts.bebasNeue(color: Colors.redAccent, fontSize: 16)),
-                ),
-              ],
+              ),
             ),
           ),
           if (_isProcessing)
-            Container(color: Colors.black54, child: const Center(child: CircularProgressIndicator(color: Colors.orange))),
+            Container(
+              color: Colors.black54, 
+              child: const Center(child: CircularProgressIndicator(color: Colors.tealAccent))
+            ),
         ],
       ),
     );

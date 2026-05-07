@@ -29,6 +29,7 @@ import 'report_center_screen.dart';
 import 'manage_players_screen.dart';
 import 'audit_log_screen.dart';
 import 'profile_screen.dart';
+import 'admin_approvals_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -520,6 +521,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             childAspectRatio: 1.6,
             children: [
               _buildActionGridItem('MANAGE PLAYERS', Icons.group_outlined, Colors.pinkAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManagePlayersScreen()))),
+              _buildActionGridItem('PENDING APPROVALS', Icons.how_to_reg_rounded, Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminApprovalsScreen()))),
               _buildActionGridItem('SYSTEM AUDIT', Icons.security_rounded, Colors.white30, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuditLogScreen()))),
             ],
           ),

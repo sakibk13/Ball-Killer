@@ -5,6 +5,7 @@ class User {
   final String password;
   final String photoUrl;
   final bool isAdmin;
+  final String status; // 'pending', 'approved', 'rejected'
 
   User({
     this.id,
@@ -13,6 +14,7 @@ class User {
     required this.password,
     this.photoUrl = '',
     this.isAdmin = false,
+    this.status = 'approved',
   });
 
   Map<String, dynamic> toMap() {
@@ -22,6 +24,7 @@ class User {
       'password': password,
       'photoUrl': photoUrl,
       'isAdmin': isAdmin,
+      'status': status,
     };
   }
 
@@ -33,6 +36,7 @@ class User {
       password: map['password'] ?? '',
       photoUrl: map['photoUrl'] ?? '',
       isAdmin: map['isAdmin'] ?? false,
+      status: map['status'] ?? 'approved',
     );
   }
 }

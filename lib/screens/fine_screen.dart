@@ -293,152 +293,152 @@ class _FineScreenState extends State<FineScreen> {
     
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 25),
       decoration: BoxDecoration(
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(50)),
+        borderRadius: BorderRadius.circular(35),
         gradient: const LinearGradient(
           colors: [Color(0xFF001F3F), Color(0xFF051970)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(color: Colors.tealAccent.withOpacity(0.05), blurRadius: 40, spreadRadius: -10),
+        ],
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(colors: [Colors.cyanAccent, Colors.blueAccent]),
-                  boxShadow: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.3), blurRadius: 10)],
-                ),
-                child: CircleAvatar(
-                  radius: 40,
-                  backgroundColor: const Color(0xFF020C3B),
-                  backgroundImage: player['photoUrl'] != null && player['photoUrl'].isNotEmpty 
-                      ? MemoryImage(base64Decode(player['photoUrl'])) 
-                      : null,
-                  child: player['photoUrl'] == null || player['photoUrl'].isEmpty 
-                      ? Text(player['name'][0], style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 36)) 
-                      : null,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF001F3F), 
-                  shape: BoxShape.circle, 
-                  border: Border.all(color: Colors.cyanAccent, width: 1.5),
-                ),
-                child: const Icon(Icons.emoji_events_rounded, color: Colors.cyanAccent, size: 16),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            StringUtils.capitalize(player['name']), 
-            textAlign: TextAlign.center,
-            style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 28, letterSpacing: 1.2)
-          ),
-          const SizedBox(height: 15),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.black38,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white10),
-            ),
+          Padding(
+            padding: const EdgeInsets.all(25),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildBigStat('TOTAL FINE', '${fine.toInt()} ৳', Colors.white70),
-                Container(width: 1, height: 35, color: Colors.white10),
-                _buildBigStat('TOTAL DUE', '${due.toInt()} ৳', due > 0 ? Colors.redAccent : Color(0xFF00E676), align: CrossAxisAlignment.end),
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(colors: [Colors.cyanAccent, Colors.blueAccent]),
+                      ),
+                      child: CircleAvatar(
+                        radius: 45,
+                        backgroundColor: const Color(0xFF020C3B),
+                        backgroundImage: player['photoUrl'] != null && player['photoUrl'].isNotEmpty 
+                            ? MemoryImage(base64Decode(player['photoUrl'])) 
+                            : null,
+                        child: player['photoUrl'] == null || player['photoUrl'].isEmpty 
+                            ? Text(player['name'][0], style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 40)) 
+                            : null,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+                      child: const Icon(Icons.star_rounded, color: Colors.white, size: 20),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('TOP CONTRIBUTOR', style: GoogleFonts.bebasNeue(color: Colors.orange, fontSize: 14, letterSpacing: 2)),
+                      Text(
+                        StringUtils.capitalize(player['name']), 
+                        style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 32, letterSpacing: 1.5, height: 1.1)
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone_android_rounded, color: Colors.white24, size: 12),
+                          const SizedBox(width: 5),
+                          Text(player['phone'] ?? 'N/A', style: GoogleFonts.poppins(color: Colors.white24, fontSize: 11)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 15),
-          Row(
-            children: [
-              _buildCyberBox('MONTHLY DUE', '${monthlyDue.toInt()} ৳', Icons.calendar_today_rounded, valColor: monthlyDue > 0 ? Colors.orangeAccent : Color(0xFF00E676)),
-              const SizedBox(width: 10),
-              _buildCyberBox('GIVEN (CASH)', '${totalGiven.toInt()} ৳', Icons.payments_outlined),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Row(
-            children: [
-              _buildCyberBox('CREDIT', '${credit.toInt()} ৳', Icons.account_balance_wallet_rounded, valColor: credit > 0 ? Colors.cyanAccent : Colors.white24),
-              const SizedBox(width: 10),
-              _buildCyberBox('BALLS LOST', '$lifetimeBalls', Icons.sports_cricket_rounded),
-            ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.03),
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(35)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildSummaryItem('LIFETIME BALLS', '$lifetimeBalls', Colors.white70),
+                    _buildSummaryItem('GIVEN (CASH)', '${totalGiven.toInt()} ৳', Colors.tealAccent),
+                  ],
+                ),
+                const SizedBox(height: 25),
+                const Divider(color: Colors.white10),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('OUTSTANDING DUE', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 12, letterSpacing: 1)),
+                        Text('${due.toInt()} ৳', style: GoogleFonts.bebasNeue(color: due > 0 ? Colors.redAccent : Colors.greenAccent, fontSize: 36)),
+                      ],
+                    ),
+                    if (credit > 0)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('SURPLUS CREDIT', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 12, letterSpacing: 1)),
+                          Text('${credit.toInt()} ৳', style: GoogleFonts.bebasNeue(color: Colors.cyanAccent, fontSize: 24)),
+                        ],
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBigStat(String label, String val, Color color, {CrossAxisAlignment align = CrossAxisAlignment.start}) {
+  Widget _buildSummaryItem(String label, String val, Color color) {
     return Column(
-      crossAxisAlignment: align,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 13, letterSpacing: 1.5)),
-        Text(val, style: GoogleFonts.bebasNeue(color: color, fontSize: 32)),
+        Text(label, style: GoogleFonts.bebasNeue(color: Colors.white24, fontSize: 11, letterSpacing: 1)),
+        const SizedBox(height: 5),
+        Text(val, style: GoogleFonts.bebasNeue(color: color, fontSize: 22)),
       ],
-    );
-  }
-
-  Widget _buildSmallTag(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Text(label, style: GoogleFonts.bebasNeue(color: color, fontSize: 9, letterSpacing: 1)),
-    );
-  }
-
-  Widget _buildCyberBox(String label, String val, IconData icon, {Color? valColor}) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: Colors.white24, size: 18),
-            const SizedBox(height: 8),
-            Text(val, style: GoogleFonts.bebasNeue(color: valColor ?? Colors.white, fontSize: 22)),
-            Text(label, style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 10, letterSpacing: 1)),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildSectionHeader(String title) {
-    return Row(
-      children: [
-        Container(width: 5, height: 22, decoration: BoxDecoration(color: Colors.tealAccent, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(width: 15),
-        Text(title, style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 22, letterSpacing: 1.5)),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          Container(width: 4, height: 20, decoration: BoxDecoration(color: Colors.tealAccent, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 12),
+          Text(title, style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 18, letterSpacing: 1.5)),
+        ],
+      ),
     );
   }
 
   Widget _buildRankingList(List<Map<String, dynamic>> players) {
-    return ListView.builder(
+    return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: players.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, i) {
         final p = players[i];
         final monthlyTotal = p['total'] as int;
@@ -446,94 +446,126 @@ class _FineScreenState extends State<FineScreen> {
         final monthlyDue = p['monthlyDue'] as double;
         final lifetimeDue = p['due'] as double;
         final credit = p['surplus'] as double;
-
-        final isTop = i == 0;
+        final isTop = i < 3;
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
-            color: isTop ? Colors.cyanAccent.withOpacity(0.05) : const Color(0xFF020C3B),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isTop ? Colors.cyanAccent.withOpacity(0.3) : Colors.white10,
-            ),
+            color: const Color(0xFF020C3B),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: isTop ? Colors.tealAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05)),
+            boxShadow: [
+              if (isTop) BoxShadow(color: Colors.tealAccent.withOpacity(0.05), blurRadius: 10),
+            ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Column(
+          child: ExpansionTile(
+            shape: const RoundedRectangleBorder(side: BorderSide.none),
+            collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: Stack(
+              alignment: Alignment.center,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 28, height: 28,
-                      decoration: BoxDecoration(
-                        color: isTop ? Colors.cyanAccent : Colors.white.withOpacity(0.05),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text('${i + 1}', style: GoogleFonts.bebasNeue(color: isTop ? const Color(0xFF020C3B) : Colors.white24, fontSize: 16)),
-                    ),
-                    const SizedBox(width: 12),
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.white10,
-                      backgroundImage: p['photoUrl'] != null && p['photoUrl'] != '' 
-                          ? MemoryImage(base64Decode(p['photoUrl'])) 
-                          : null,
-                      child: p['photoUrl'] == null || p['photoUrl'] == '' ? Text(p['name'][0], style: const TextStyle(color: Colors.cyanAccent, fontSize: 12)) : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(StringUtils.capitalize(p['name']), style: GoogleFonts.poppins(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text('$monthlyTotal BALLS', style: GoogleFonts.bebasNeue(color: isTop ? Colors.cyanAccent : Colors.white70, fontSize: 16)),
-                                if (credit > 0)
-                                  Text('CREDIT: ${credit.toInt()} ৳', style: GoogleFonts.bebasNeue(color: Color(0xFF00E676), fontSize: 10, letterSpacing: 0.5)),
-                              ],
-                            ),
-                            const SizedBox(width: 10),
-                            GestureDetector(
-                              onTap: () => _sendWhatsAppReminder(p),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(color: Color(0xFF00E676).withOpacity(0.1), shape: BoxShape.circle),
-                                child: const Icon(Icons.send_to_mobile_rounded, color: Color(0xFF00E676), size: 16),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+                Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(
+                    color: isTop ? Colors.orange.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('${i + 1}', style: GoogleFonts.bebasNeue(color: isTop ? Colors.orange : Colors.white24, fontSize: 18)),
                 ),
-                const SizedBox(height: 10),
-                Container(height: 1, color: Colors.white.withOpacity(0.05)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.spaceBetween,
-                  children: [
-                    _buildStatusPill('TOTAL FINE', '${p['totalFine'].toInt()} ৳', Colors.white70),
-                    _buildStatusPill('TOTAL DUE', '${lifetimeDue.toInt()} ৳', lifetimeDue > 0 ? Colors.redAccent : Color(0xFF00E676)),
-                    _buildStatusPill('MONTHLY DUE', '${monthlyDue.toInt()} ৳', monthlyDue > 0 ? Colors.orangeAccent : Color(0xFF00E676)),
-                    _buildStatusPill('GIVEN', '${totalGiven.toInt()} ৳', Colors.white38),
-                  ],
-                ),
+                if (isTop)
+                  Positioned(
+                    top: -2, right: -2,
+                    child: Icon(Icons.workspace_premium, color: Colors.orange, size: 14),
+                  ),
               ],
             ),
+            title: Text(
+              StringUtils.capitalize(p['name']), 
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)
+            ),
+            subtitle: Row(
+              children: [
+                Text('$monthlyTotal BALLS', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 11, letterSpacing: 0.5)),
+                const SizedBox(width: 8),
+                if (lifetimeDue > 0)
+                  _buildMiniTag('DUE: ${lifetimeDue.toInt()}৳', Colors.redAccent)
+                else if (credit > 0)
+                  _buildMiniTag('CREDIT: ${credit.toInt()}৳', Colors.greenAccent)
+                else
+                  _buildMiniTag('CLEARED', Colors.greenAccent),
+              ],
+            ),
+            trailing: IconButton(
+              icon: Icon(Icons.send_to_mobile_rounded, color: Colors.greenAccent.withOpacity(0.7), size: 20),
+              onPressed: () => _sendWhatsAppReminder(p),
+            ),
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                child: Column(
+                  children: [
+                    const Divider(color: Colors.white10),
+                    const SizedBox(height: 15),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildDetailItem('LIFETIME FINE', '${p['totalFine'].toInt()} ৳', Colors.white70),
+                        _buildDetailItem('TOTAL PAID', '${totalGiven.toInt()} ৳', Colors.tealAccent),
+                        _buildDetailItem('MONTHLY DUE', '${monthlyDue.toInt()} ৳', monthlyDue > 0 ? Colors.orangeAccent : Colors.white24),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: Colors.black26,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('NET BALANCE', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 14)),
+                          Text(
+                            lifetimeDue > 0 ? '- ${lifetimeDue.toInt()} ৳' : '+ ${credit.toInt()} ৳',
+                            style: GoogleFonts.bebasNeue(
+                              color: lifetimeDue > 0 ? Colors.redAccent : Colors.greenAccent, 
+                              fontSize: 22
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMiniTag(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(label, style: GoogleFonts.bebasNeue(color: color, fontSize: 9, letterSpacing: 0.5)),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String val, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: GoogleFonts.bebasNeue(color: Colors.white24, fontSize: 10)),
+        const SizedBox(height: 2),
+        Text(val, style: GoogleFonts.bebasNeue(color: color, fontSize: 16)),
+      ],
     );
   }
 

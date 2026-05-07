@@ -182,7 +182,14 @@ class DatabaseService {
           .limit(1)
           .get();
       if (snap.docs.isNotEmpty) {
-        return User.fromMap(snap.docs.first.data(), docId: snap.docs.first.id);
+        final user = User.fromMap(snap.docs.first.data(), docId: snap.docs.first.id);
+        
+        // Check for approval (Master admin always allowed)
+        if (user.status != 'approved' && phone != '01832465446') {
+          throw 'Your account is ${user.status}. Please wait for admin approval.';
+        }
+        
+        return user;
       }
     } catch (e) {
       debugPrint('!!! LOGIN ERROR: $e');
@@ -200,34 +207,21 @@ class DatabaseService {
         throw 'Phone number already registered. Try a new number.';
       }
       
-      // 2. Create the user entry
-      await _db.collection('users').add(user.toMap());
-      
-      // 3. Check if they were already added as a 'player' by an admin
-      // Check by phone first
-      final phoneMatch = await _db.collection('players').where('phone', isEqualTo: user.phone).limit(1).get();
-      
-      QuerySnapshot<Map<String, dynamic>>? existingPlayer;
-      if (phoneMatch.docs.isNotEmpty) {
-        existingPlayer = phoneMatch;
-      } else {
-        // Fallback: Check by name to prevent duplicates if admin entered wrong number
-        final nameMatch = await _db.collection('players').where('name', isEqualTo: user.name).limit(1).get();
-        if (nameMatch.docs.isNotEmpty) {
-          existingPlayer = nameMatch;
-        }
-      }
-      
-      if (existingPlayer != null && existingPlayer.docs.isNotEmpty) {
-        // IMPORTANT: If admin already added them, update their info
-        // This links the User and Player together
-        await _db.collection('players').doc(existingPlayer.docs.first.id).update({
-          'phone': user.phone, // Ensure phone is updated/synced
-          'password': user.password,
-          'photoUrl': user.photoUrl != '' ? user.photoUrl : existingPlayer.docs.first.data()['photoUrl'],
-        });
-      }
+      // 2. Create the user entry as PENDING (except master admin)
+      final status = user.phone == '01832465446' ? 'approved' : 'pending';
+      final newUser = User(
+        name: user.name,
+        phone: user.phone,
+        password: user.password,
+        photoUrl: user.photoUrl,
+        isAdmin: user.phone == '01832465446',
+        status: status,
+      );
 
+      await _db.collection('users').add(newUser.toMap());
+      
+      // We no longer automatically add to players until approved
+      
       // SYNC TO GOOGLE SHEETS
       CloudSyncService.syncSingleUser(
         name: user.name,
@@ -239,6 +233,42 @@ class DatabaseService {
     } catch (e) {
       debugPrint('!!! REGISTRATION ERROR: $e');
       rethrow; 
+    }
+  }
+
+  Future<List<User>> getPendingUsers() async {
+    try {
+      final snap = await _db.collection('users').where('status', isEqualTo: 'pending').get();
+      return snap.docs.map((doc) => User.fromMap(doc.data(), docId: doc.id)).toList();
+    } catch (e) {
+      debugPrint('!!! GET PENDING USERS ERROR: $e');
+      return [];
+    }
+  }
+
+  Future<bool> updateUserStatus(String userId, String status) async {
+    try {
+      final userDoc = await _db.collection('users').doc(userId).get();
+      if (!userDoc.exists) return false;
+      
+      final userData = userDoc.data()!;
+      await _db.collection('users').doc(userId).update({'status': status});
+      
+      if (status == 'approved') {
+        // Automatically create/link a player upon approval
+        final player = Player(
+          name: userData['name'],
+          phone: userData['phone'],
+          password: userData['password'],
+          photoUrl: userData['photoUrl'] ?? '',
+        );
+        await addOrUpdatePlayer(player);
+      }
+      
+      return true;
+    } catch (e) {
+      debugPrint('!!! UPDATE USER STATUS ERROR: $e');
+      return false;
     }
   }
 
@@ -466,11 +496,12 @@ class DatabaseService {
   }
 
   // PROFILE MANAGEMENT
-  Future<bool> updateUserProfile(String phone, {String? name, String? photoUrl}) async {
+  Future<bool> updateUserProfile(String phone, {String? name, String? photoUrl, String? newPhone}) async {
     try {
       final Map<String, dynamic> updateData = {};
       if (name != null) updateData['name'] = name;
       if (photoUrl != null) updateData['photoUrl'] = photoUrl;
+      if (newPhone != null) updateData['phone'] = newPhone;
 
       if (updateData.isEmpty) return true;
 
@@ -491,7 +522,7 @@ class DatabaseService {
         final fullData = userSnap.docs.first.data();
         CloudSyncService.syncSingleUser(
           name: name ?? fullData['name'],
-          phone: phone,
+          phone: newPhone ?? phone,
           password: fullData['password'],
         );
       }

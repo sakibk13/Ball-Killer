@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1004526607684",
+    "project_id": "ball-killer",
+    "storage_bucket": "ball-killer.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1004526607684:android:933df48a6e833c5edc4b11",
+        "android_client_info": {
+          "package_name": "com.example.ball_killer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCDFWUdEtgWuJInkcd1dkjIYmSUxla3NFw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

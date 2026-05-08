@@ -204,6 +204,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     final user = authProvider.currentUser;
     final isAdmin = authProvider.isAdmin;
     final isLoading = ballProvider.isLoading || invProvider.isLoading;
+    final double screenWidth = MediaQuery.of(context).size.width;
 
     Uint8List? photoBytes;
     if (user?.photoUrl != null && user!.photoUrl.isNotEmpty) {

@@ -116,7 +116,7 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: const BoxConstraints(maxWidth: 800),
           child: RefreshIndicator(
             onRefresh: () => ballProvider.refresh().then((_) => _updateMonthList(ballProvider)),
             color: Colors.tealAccent,

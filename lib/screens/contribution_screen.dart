@@ -485,7 +485,7 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: const BoxConstraints(maxWidth: 800),
           child: RefreshIndicator(
             onRefresh: () async {
               await provider.fetchContributions(force: true);

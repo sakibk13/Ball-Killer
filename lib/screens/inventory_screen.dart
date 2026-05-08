@@ -459,7 +459,7 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: const BoxConstraints(maxWidth: 800),
           child: RefreshIndicator(
             onRefresh: () async { 
               await inv.fetchInventory(force: true); 

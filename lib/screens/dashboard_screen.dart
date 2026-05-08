@@ -261,7 +261,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 opacity: _fadeController,
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 600),
+                    constraints: const BoxConstraints(maxWidth: 800),
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -457,24 +457,26 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildQuickActionsGrid(bool isAdmin, bool isGuest) {
+  Widget _buildQuickActionsGrid(bool isAdmin, bool isGuest, double screenWidth) {
+    int columns = screenWidth > 600 ? 4 : 2;
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
+      crossAxisCount: columns,
       crossAxisSpacing: 15,
       mainAxisSpacing: 15,
       childAspectRatio: 1.6,
       children: [
-        if (isAdmin) _buildActionGridItem('RECORD LOSS', Icons.sports_cricket_rounded, Colors.tealAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerBallLossScreen()))),
         _buildActionGridItem('LEADERBOARD', Icons.workspace_premium_rounded, Colors.cyanAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
         _buildActionGridItem('TRACK OVERVIEW', Icons.assignment_late_outlined, Colors.purpleAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecordsScreen()))),
         _buildActionGridItem('PLAYER FINES', Icons.money_off_rounded, Colors.redAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FineScreen()))),
+        _buildActionGridItem('PLAYER STATUS', Icons.person_search_rounded, Colors.blueAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerStatusScreen()))),
       ],
     );
   }
 
-  Widget _buildSecondaryActionsGrid(bool isAdmin, bool isGuest) {
+  Widget _buildSecondaryActionsGrid(bool isAdmin, bool isGuest, double screenWidth) {
+    int columns = screenWidth > 600 ? 4 : 2;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -489,7 +491,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
+          crossAxisCount: columns,
           crossAxisSpacing: 15,
           mainAxisSpacing: 15,
           childAspectRatio: 1.6,
@@ -497,9 +499,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             _buildActionGridItem('FINANCIAL LOGS', Icons.payments_outlined, const Color(0xFF00E676), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContributionScreen()))),
             _buildActionGridItem('TREASURY LOG', Icons.account_balance_rounded, Colors.tealAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FundScreen()))),
             _buildActionGridItem('STOCK LOG', Icons.inventory_2_outlined, Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen()))),
-            _buildActionGridItem('PLAYER STATUS', Icons.person_search_rounded, Colors.blueAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerStatusScreen()))),
             _buildActionGridItem('REPORT CENTER', Icons.bar_chart_rounded, Colors.cyanAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportCenterScreen()))),
-            if (!isGuest) _buildActionGridItem('CLOUD SYNC', Icons.cloud_sync_rounded, Colors.white, () => _showSyncOptions()),
           ],
         ),
         if (isAdmin) ...[
@@ -515,11 +515,13 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
+            crossAxisCount: columns,
             crossAxisSpacing: 15,
             mainAxisSpacing: 15,
             childAspectRatio: 1.6,
             children: [
+              _buildActionGridItem('RECORD LOSS', Icons.sports_cricket_rounded, Colors.tealAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerBallLossScreen()))),
+              _buildActionGridItem('CLOUD SYNC', Icons.cloud_sync_rounded, Colors.white, () => _showSyncOptions()),
               _buildActionGridItem('MANAGE PLAYERS', Icons.group_outlined, Colors.pinkAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManagePlayersScreen()))),
               _buildActionGridItem('PENDING APPROVALS', Icons.how_to_reg_rounded, Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminApprovalsScreen()))),
               _buildActionGridItem('SYSTEM AUDIT', Icons.security_rounded, Colors.white30, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuditLogScreen()))),

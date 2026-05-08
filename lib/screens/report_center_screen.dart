@@ -197,7 +197,7 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
         children: [
           Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
+              constraints: const BoxConstraints(maxWidth: 800),
               child: Padding(
                 padding: const EdgeInsets.all(25),
                 child: Column(
@@ -248,7 +248,7 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
       ),
       bottomNavigationBar: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: const BoxConstraints(maxWidth: 800),
           child: _buildBottomAction(),
         ),
       ),

@@ -102,7 +102,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: const BoxConstraints(maxWidth: 800),
           child: Column(
             children: [
               Container(

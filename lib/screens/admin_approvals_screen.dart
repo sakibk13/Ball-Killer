@@ -52,7 +52,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: const BoxConstraints(maxWidth: 800),
           child: _isLoading 
             ? const Center(child: CircularProgressIndicator(color: Colors.orange))
             : RefreshIndicator(

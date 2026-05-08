@@ -118,7 +118,7 @@ class _PlayerBallLossScreenState extends State<PlayerBallLossScreen> with Single
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: const BoxConstraints(maxWidth: 800),
           child: RefreshIndicator(
             onRefresh: () async {
               await ballProvider.refresh();

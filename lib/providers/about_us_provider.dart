@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -24,7 +23,7 @@ class AboutUsProvider with ChangeNotifier {
 
   Future<String?> addMemory({
     required String note,
-    required List<File> files,
+    required List<Uint8List> fileBytes,
     required String adminName,
   }) async {
     _isLoading = true;
@@ -32,9 +31,7 @@ class AboutUsProvider with ChangeNotifier {
 
     try {
       List<String> base64Images = [];
-      for (var file in files) {
-        final bytes = await file.readAsBytes();
-        // Base64 encoding for database storage
+      for (var bytes in fileBytes) {
         base64Images.add(base64Encode(bytes));
       }
 
@@ -75,7 +72,7 @@ class AboutUsProvider with ChangeNotifier {
     required String id,
     required String note,
     required List<String> existingBase64,
-    required List<File> newFiles,
+    required List<Uint8List> newFileBytes,
     required String adminName,
   }) async {
     _isLoading = true;
@@ -84,8 +81,7 @@ class AboutUsProvider with ChangeNotifier {
     try {
       List<String> finalBase64 = List.from(existingBase64);
 
-      for (var file in newFiles) {
-        final bytes = await file.readAsBytes();
+      for (var bytes in newFileBytes) {
         finalBase64.add(base64Encode(bytes));
       }
 

@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,7 +19,7 @@ class AdminAboutUsScreen extends StatefulWidget {
 
 class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
   late TextEditingController _noteController;
-  final List<File> _selectedFiles = [];
+  final List<Uint8List> _selectedFileBytes = [];
   final List<String> _existingUrls = [];
   final _picker = ImagePicker();
 
@@ -33,19 +33,20 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
   }
 
   Future<void> _pickImages() async {
-    final pickedFiles = await _picker.pickMultiImage(imageQuality: 30); // Reduced quality for DB storage
+    final pickedFiles = await _picker.pickMultiImage(imageQuality: 30);
     if (pickedFiles.isNotEmpty) {
-      setState(() {
-        for (var file in pickedFiles) {
-          _selectedFiles.add(File(file.path));
-        }
-      });
+      for (var xFile in pickedFiles) {
+        final bytes = await xFile.readAsBytes();
+        setState(() {
+          _selectedFileBytes.add(bytes);
+        });
+      }
     }
   }
 
   void _removeFile(int index) {
     setState(() {
-      _selectedFiles.removeAt(index);
+      _selectedFileBytes.removeAt(index);
     });
   }
 
@@ -130,12 +131,12 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
               ],
             ),
             const SizedBox(height: 25),
-            if (_selectedFiles.isNotEmpty)
+            if (_selectedFileBytes.isNotEmpty)
               SizedBox(
                 height: 120,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  itemCount: _selectedFiles.length,
+                  itemCount: _selectedFileBytes.length,
                   itemBuilder: (context, i) {
                     return Stack(
                       children: [
@@ -145,7 +146,7 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: Colors.white10),
-                            image: DecorationImage(image: FileImage(_selectedFiles[i]), fit: BoxFit.cover),
+                            image: DecorationImage(image: MemoryImage(_selectedFileBytes[i]), fit: BoxFit.cover),
                           ),
                         ),
                         Positioned(
@@ -171,7 +172,7 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
               height: 55,
               child: ElevatedButton(
                 onPressed: aboutUs.isLoading ? null : () async {
-                  if (_noteController.text.isEmpty && _selectedFiles.isEmpty && _existingUrls.isEmpty) {
+                  if (_noteController.text.isEmpty && _selectedFileBytes.isEmpty && _existingUrls.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add a note or some photos')));
                     return;
                   }
@@ -180,7 +181,7 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
                   if (widget.memory == null) {
                     error = await aboutUs.addMemory(
                       note: _noteController.text,
-                      files: _selectedFiles,
+                      fileBytes: _selectedFileBytes,
                       adminName: auth.currentUser?.name ?? 'Admin',
                     );
                   } else {
@@ -188,7 +189,7 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
                       id: widget.memory!.id!,
                       note: _noteController.text,
                       existingBase64: _existingUrls,
-                      newFiles: _selectedFiles,
+                      newFileBytes: _selectedFileBytes,
                       adminName: auth.currentUser?.name ?? 'Admin',
                     );
                   }

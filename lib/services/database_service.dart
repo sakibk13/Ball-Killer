@@ -586,6 +586,17 @@ class DatabaseService {
     }
   }
 
+  Future<bool> updateMemory(Memory memory) async {
+    try {
+      if (memory.id == null) return false;
+      await _db.collection('memories').doc(memory.id!).update(memory.toMap());
+      return true;
+    } catch (e) {
+      debugPrint('!!! UPDATE MEMORY ERROR: $e');
+      return false;
+    }
+  }
+
   Future<void> deleteMemory(String id) async {
     try {
       await _db.collection('memories').doc(id).delete();

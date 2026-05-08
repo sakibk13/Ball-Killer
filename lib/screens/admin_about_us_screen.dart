@@ -8,17 +8,30 @@ import '../providers/auth_provider.dart';
 import '../utils/status_dialog.dart';
 
 class AdminAboutUsScreen extends StatefulWidget {
-  const AdminAboutUsScreen({super.key});
+  final Memory? memory;
+  const AdminAboutUsScreen({super.key, this.memory});
 
   @override
   State<AdminAboutUsScreen> createState() => _AdminAboutUsScreenState();
 }
 
 class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
-  final _noteController = TextEditingController();
+  late TextEditingController _noteController;
   final List<File> _selectedFiles = [];
   final List<String> _fileTypes = [];
+  final List<String> _existingUrls = [];
+  final List<String> _existingTypes = [];
   final _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _noteController = TextEditingController(text: widget.memory?.note ?? '');
+    if (widget.memory != null) {
+      _existingUrls.addAll(widget.memory!.mediaUrls);
+      _existingTypes.addAll(widget.memory!.mediaTypes);
+    }
+  }
 
   Future<void> _pickImages() async {
     final pickedFiles = await _picker.pickMultiImage();
@@ -57,7 +70,7 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF051970),
       appBar: AppBar(
-        title: Text('ADD NEW MEMORY', style: GoogleFonts.bebasNeue(color: Colors.white)),
+        title: Text(widget.memory == null ? 'ADD NEW MEMORY' : 'EDIT MEMORY', style: GoogleFonts.bebasNeue(color: Colors.white)),
         backgroundColor: const Color(0xFF020C3B),
         elevation: 0,
       ),
@@ -80,8 +93,55 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
               ),
             ),
+            if (_existingUrls.isNotEmpty) ...[
+              const SizedBox(height: 30),
+              Text('EXISTING MEDIA', style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 18)),
+              const SizedBox(height: 15),
+              SizedBox(
+                height: 100,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _existingUrls.length,
+                  itemBuilder: (context, i) {
+                    return Stack(
+                      children: [
+                        Container(
+                          width: 80,
+                          margin: const EdgeInsets.only(right: 15),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
+                            image: _existingTypes[i] == 'image' 
+                              ? DecorationImage(image: NetworkImage(_existingUrls[i]), fit: BoxFit.cover)
+                              : null,
+                          ),
+                          child: _existingTypes[i] == 'video'
+                            ? const Center(child: Icon(Icons.videocam, color: Colors.tealAccent))
+                            : null,
+                        ),
+                        Positioned(
+                          right: 10,
+                          top: 5,
+                          child: GestureDetector(
+                            onTap: () => setState(() {
+                              _existingUrls.removeAt(i);
+                              _existingTypes.removeAt(i);
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                              child: const Icon(Icons.close, color: Colors.white, size: 10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 30),
-            Text('ATTACH MEDIA', style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 18)),
+            Text('ADD NEW MEDIA', style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 18)),
             const SizedBox(height: 15),
             Row(
               children: [
@@ -137,25 +197,39 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
               height: 55,
               child: ElevatedButton(
                 onPressed: aboutUs.isLoading ? null : () async {
-                  if (_noteController.text.isEmpty && _selectedFiles.isEmpty) {
+                  if (_noteController.text.isEmpty && _selectedFiles.isEmpty && _existingUrls.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add a note or some media')));
                     return;
                   }
-                  final success = await aboutUs.addMemory(
-                    note: _noteController.text,
-                    files: _selectedFiles,
-                    types: _fileTypes,
-                    adminName: auth.currentUser?.name ?? 'Admin',
-                  );
+
+                  bool success;
+                  if (widget.memory == null) {
+                    success = await aboutUs.addMemory(
+                      note: _noteController.text,
+                      files: _selectedFiles,
+                      types: _fileTypes,
+                      adminName: auth.currentUser?.name ?? 'Admin',
+                    );
+                  } else {
+                    success = await aboutUs.updateMemory(
+                      id: widget.memory!.id!,
+                      note: _noteController.text,
+                      existingUrls: _existingUrls,
+                      existingTypes: _existingTypes,
+                      newFiles: _selectedFiles,
+                      newTypes: _fileTypes,
+                      adminName: auth.currentUser?.name ?? 'Admin',
+                    );
+                  }
                   
                   if (mounted) {
                     if (success) {
-                      StatusDialog.show(context, title: "SUCCESS", message: "Memory hung on the wall!", isSuccess: true);
+                      StatusDialog.show(context, title: "SUCCESS", message: widget.memory == null ? "Memory hung on the wall!" : "Memory updated!", isSuccess: true);
                       Future.delayed(const Duration(seconds: 1), () {
                         if (mounted) Navigator.pop(context);
                       });
                     } else {
-                      StatusDialog.show(context, title: "ERROR", message: "Failed to upload memory. Please check your connection.", isSuccess: false);
+                      StatusDialog.show(context, title: "ERROR", message: "Failed to save memory. Please check your connection.", isSuccess: false);
                     }
                   }
                 },
@@ -165,7 +239,7 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
                 ),
                 child: aboutUs.isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : Text('HANG ON THE WALL', style: GoogleFonts.bebasNeue(color: const Color(0xFF051970), fontSize: 20)),
+                  : Text(widget.memory == null ? 'HANG ON THE WALL' : 'UPDATE MEMORY', style: GoogleFonts.bebasNeue(color: const Color(0xFF051970), fontSize: 20)),
               ),
             ),
           ],

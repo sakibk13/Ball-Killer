@@ -71,4 +71,56 @@ class AboutUsProvider with ChangeNotifier {
     await _db.deleteMemory(id);
     await fetchMemories();
   }
+
+  Future<bool> updateMemory({
+    required String id,
+    required String note,
+    required List<String> existingUrls,
+    required List<String> existingTypes,
+    required List<File> newFiles,
+    required List<String> newTypes,
+    required String adminName,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      List<String> finalUrls = List.from(existingUrls);
+      List<String> finalTypes = List.from(existingTypes);
+
+      for (int i = 0; i < newFiles.length; i++) {
+        final file = newFiles[i];
+        final filename = '${DateTime.now().millisecondsSinceEpoch}_update_$i.${newTypes[i] == 'video' ? 'mp4' : 'jpg'}';
+        final ref = _storage.ref().child('memories/$filename');
+        
+        final metadata = SettableMetadata(contentType: newTypes[i] == 'video' ? 'video/mp4' : 'image/jpeg');
+        final uploadTask = await ref.putFile(file, metadata);
+        final url = await uploadTask.ref.getDownloadURL();
+        finalUrls.add(url);
+        finalTypes.add(newTypes[i]);
+      }
+
+      final memory = Memory(
+        id: id,
+        note: note,
+        mediaUrls: finalUrls,
+        mediaTypes: finalTypes,
+        date: DateTime.now(), // Update date to show it was edited recently? Or keep original? Let's keep original or update it.
+        adminName: adminName,
+      );
+
+      final success = await _db.updateMemory(memory);
+      if (success) {
+        await fetchMemories();
+      }
+      _isLoading = false;
+      notifyListeners();
+      return success;
+    } catch (e) {
+      debugPrint('!!! UPDATE MEMORY ERROR: $e');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
 }

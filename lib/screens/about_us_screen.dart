@@ -209,13 +209,26 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
               Text(m.note, style: GoogleFonts.poppins(color: Colors.white70)),
               const SizedBox(height: 20),
               if (Provider.of<AuthProvider>(context, listen: false).isAdmin)
-                TextButton.icon(
-                  onPressed: () {
-                    Provider.of<AboutUsProvider>(context, listen: false).deleteMemory(m.id!);
-                    Navigator.pop(ctx);
-                  },
-                  icon: const Icon(Icons.delete, color: Colors.redAccent),
-                  label: const Text('DELETE MEMORY', style: TextStyle(color: Colors.redAccent)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => AdminAboutUsScreen(memory: m)));
+                      },
+                      icon: const Icon(Icons.edit, color: Colors.blueAccent),
+                      label: const Text('EDIT', style: TextStyle(color: Colors.blueAccent)),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        Provider.of<AboutUsProvider>(context, listen: false).deleteMemory(m.id!);
+                        Navigator.pop(ctx);
+                      },
+                      icon: const Icon(Icons.delete, color: Colors.redAccent),
+                      label: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
+                    ),
+                  ],
                 ),
             ],
           ),

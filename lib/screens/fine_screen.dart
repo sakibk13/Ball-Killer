@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -56,8 +57,6 @@ class _FineScreenState extends State<FineScreen> {
     }
     
     months.add(DateFormat('MMMM yyyy').format(DateTime.now()));
-    
-    // Always include the previous month (April 2026 if now is May 2026)
     DateTime prevMonth = DateTime(DateTime.now().year, DateTime.now().month - 1, 1);
     months.add(DateFormat('MMMM yyyy').format(prevMonth));
     
@@ -86,29 +85,19 @@ class _FineScreenState extends State<FineScreen> {
     
     final enrichedPlayers = playersWithTotals.map((p) {
       final String playerId = p['id'];
-      
-      // 1. LIFETIME BALLS (Using totalOverall from provider map to respect manual edits)
       final int lifetimeBalls = p['totalOverall'] ?? (p['total'] ?? 0);
-      
       final double totalFineOverall = lifetimeBalls * 50.0;
 
-      // 2. LIFETIME PAYMENTS (Deductible cash only)
-      // Direct Fine Payments (from Fines page)
       final double totalPaidDirectLifetime = fineProvider.payments
           .where((pay) => pay.playerId == playerId)
           .fold(0.0, (sum, pay) => sum + pay.amountPaid);
 
-      // Cash Contributions (from Financials page)
-      // NOTE: We only count contributions that are NOT 'isOther' (items) 
-      // AND optionally mark them as isFinePayment to be 100% sure they are meant for fines.
-      // But based on your instruction, general deductible cash should also deduct.
       final double totalFineSpecificContribLifetime = contributionProvider.contributions
           .where((c) => c.playerId == playerId && !c.isOther)
           .fold(0.0, (sum, c) => sum + c.taka);
 
       final double totalDeductiblePaidLifetime = totalPaidDirectLifetime + totalFineSpecificContribLifetime;
 
-      // 3. MONTHLY CALCULATIONS (For current selected month view)
       final int monthlyBalls = p['total'] as int;
       final double monthlyFine = monthlyBalls * 50.0;
 
@@ -124,7 +113,6 @@ class _FineScreenState extends State<FineScreen> {
 
       final double totalPaidMonthly = monthlyPaidDirect + monthlyFineSpecificContrib;
 
-      // 4. FINAL STATUS
       double lifetimeDue = 0;
       double lifetimeCredit = 0;
       if (totalDeductiblePaidLifetime >= totalFineOverall) {
@@ -141,7 +129,7 @@ class _FineScreenState extends State<FineScreen> {
       return {
         ...p,
         'totalFine': totalFineOverall,
-        'paid': totalDeductiblePaidLifetime, // Combined cash paid towards fines
+        'paid': totalDeductiblePaidLifetime,
         'due': lifetimeDue,
         'surplus': lifetimeCredit,
         'monthlyBalls': monthlyBalls,
@@ -288,7 +276,6 @@ class _FineScreenState extends State<FineScreen> {
 
   Widget _buildFineCard(Map<String, dynamic> player, int lost, double fine, double due, double credit) {
     final int lifetimeBalls = player['lifetimeBalls'] ?? 0;
-    final double monthlyDue = player['monthlyDue'] ?? 0.0;
     final double totalGiven = player['paid'] ?? 0.0;
     
     return Container(
@@ -434,21 +421,26 @@ class _FineScreenState extends State<FineScreen> {
   }
 
   Widget _buildRankingList(List<Map<String, dynamic>> players) {
-    return ListView.separated(
+    return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: players.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, i) {
         final p = players[i];
-        final monthlyTotal = p['total'] as int;
+        final monthlyTotal = p['monthlyBalls'] as int;
         final totalGiven = p['paid'] as double;
         final monthlyDue = p['monthlyDue'] as double;
         final lifetimeDue = p['due'] as double;
         final credit = p['surplus'] as double;
         final isTop = i < 3;
 
+        Uint8List? pBytes;
+        if (p['photoUrl'] != null && p['photoUrl'] != '') {
+          try { pBytes = base64Decode(p['photoUrl']); } catch (_) {}
+        }
+
         return Container(
+          margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: const Color(0xFF020C3B),
             borderRadius: BorderRadius.circular(25),
@@ -461,28 +453,30 @@ class _FineScreenState extends State<FineScreen> {
             shape: const RoundedRectangleBorder(side: BorderSide.none),
             collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
             tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: Stack(
-              alignment: Alignment.center,
+            leading: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 32, height: 32,
+                  width: 28, height: 28,
                   decoration: BoxDecoration(
                     color: isTop ? Colors.orange.withOpacity(0.1) : Colors.white.withOpacity(0.05),
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
-                  child: Text('${i + 1}', style: GoogleFonts.bebasNeue(color: isTop ? Colors.orange : Colors.white24, fontSize: 18)),
+                  child: Text('${i + 1}', style: GoogleFonts.bebasNeue(color: isTop ? Colors.orange : Colors.white24, fontSize: 16)),
                 ),
-                if (isTop)
-                  Positioned(
-                    top: -2, right: -2,
-                    child: Icon(Icons.workspace_premium, color: Colors.orange, size: 14),
-                  ),
+                const SizedBox(width: 10),
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.white10,
+                  backgroundImage: pBytes != null ? MemoryImage(pBytes) : null,
+                  child: pBytes == null ? Text(p['name'][0], style: const TextStyle(color: Colors.tealAccent, fontSize: 12)) : null,
+                ),
               ],
             ),
             title: Text(
               StringUtils.capitalize(p['name']), 
-              style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)
             ),
             subtitle: Row(
               children: [
@@ -566,19 +560,6 @@ class _FineScreenState extends State<FineScreen> {
         const SizedBox(height: 2),
         Text(val, style: GoogleFonts.bebasNeue(color: color, fontSize: 16)),
       ],
-    );
-  }
-
-  Widget _buildStatusPill(String label, String val, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.02), borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        children: [
-          Text('$label: ', style: GoogleFonts.bebasNeue(color: Colors.white24, fontSize: 10, letterSpacing: 0.5)),
-          Text(val, style: GoogleFonts.bebasNeue(color: color, fontSize: 13)),
-        ],
-      ),
     );
   }
 
@@ -715,19 +696,12 @@ class _FineScreenState extends State<FineScreen> {
     final double due = player['due'];
     final double credit = player['surplus'];
     String phone = player['phone'] ?? '';
-    
-    // Clean all symbols and spaces
     phone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    
-    // Format for Bangladesh (Add 88 if missing)
     if (phone.length == 11 && phone.startsWith('0')) {
       phone = '88$phone';
     } else if (phone.length == 10 && !phone.startsWith('0')) {
       phone = '880$phone';
-    } else if (phone.length == 13 && phone.startsWith('880')) {
-      // Already correct (8801...)
     }
-
     String message = '';
     if (due > 0) {
       message = "Hey ${StringUtils.capitalize(name)}, you have a club due of ${due.toInt()} BDT. Please clear it at your earliest convenience. - Ball Killer by Mini Cricket";
@@ -736,8 +710,6 @@ class _FineScreenState extends State<FineScreen> {
     } else {
       message = "Hey ${StringUtils.capitalize(name)}, your club account is all clear! Keep it up. - Ball Killer by Mini Cricket";
     }
-
-    // SHOW PREVIEW DIALOG FIRST
     showDialog(
      context: context,
      builder: (ctx) => AlertDialog(
@@ -796,7 +768,6 @@ class _FineScreenState extends State<FineScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Only admins can add collection records')));
       return;
     }
-
     final formKey = GlobalKey<FormState>();
     String? selectedPlayerId;
     String? selectedPlayerName;
@@ -804,7 +775,6 @@ class _FineScreenState extends State<FineScreen> {
     final noteController = TextEditingController();
     DateTime selectedDate = DateTime.now();
     bool syncToFinancials = true;
-
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -934,9 +904,7 @@ class _FineScreenState extends State<FineScreen> {
               onPressed: () async {
                 if (formKey.currentState!.validate() && selectedPlayerId != null) {
                   final amount = double.parse(amountController.text);
-                  
                   bool success = false;
-                  
                   if (syncToFinancials) {
                     final contrib = Contribution(
                       playerId: selectedPlayerId,
@@ -959,7 +927,6 @@ class _FineScreenState extends State<FineScreen> {
                     );
                     success = await Provider.of<FineProvider>(context, listen: false).addPayment(payment);
                   }
-
                   if (success) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record added successfully')));

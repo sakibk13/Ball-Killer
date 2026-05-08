@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../models/memory.dart';
 import '../providers/about_us_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/status_dialog.dart';
@@ -202,16 +203,16 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
                     return;
                   }
 
-                  bool success;
+                  String? error;
                   if (widget.memory == null) {
-                    success = await aboutUs.addMemory(
+                    error = await aboutUs.addMemory(
                       note: _noteController.text,
                       files: _selectedFiles,
                       types: _fileTypes,
                       adminName: auth.currentUser?.name ?? 'Admin',
                     );
                   } else {
-                    success = await aboutUs.updateMemory(
+                    error = await aboutUs.updateMemory(
                       id: widget.memory!.id!,
                       note: _noteController.text,
                       existingUrls: _existingUrls,
@@ -223,13 +224,13 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
                   }
                   
                   if (mounted) {
-                    if (success) {
+                    if (error == null) {
                       StatusDialog.show(context, title: "SUCCESS", message: widget.memory == null ? "Memory hung on the wall!" : "Memory updated!", isSuccess: true);
                       Future.delayed(const Duration(seconds: 1), () {
                         if (mounted) Navigator.pop(context);
                       });
                     } else {
-                      StatusDialog.show(context, title: "ERROR", message: "Failed to save memory. Please check your connection.", isSuccess: false);
+                      StatusDialog.show(context, title: "UPLOAD ERROR", message: error, isSuccess: false);
                     }
                   }
                 },

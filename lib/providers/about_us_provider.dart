@@ -22,7 +22,7 @@ class AboutUsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> addMemory({
+  Future<String?> addMemory({
     required String note,
     required List<File> files,
     required List<String> types,
@@ -38,8 +38,11 @@ class AboutUsProvider with ChangeNotifier {
         final filename = '${DateTime.now().millisecondsSinceEpoch}_$i.${types[i] == 'video' ? 'mp4' : 'jpg'}';
         final ref = _storage.ref().child('memories/$filename');
         
+        // Read file as bytes for more reliable upload
+        final Uint8List data = await file.readAsBytes();
         final metadata = SettableMetadata(contentType: types[i] == 'video' ? 'video/mp4' : 'image/jpeg');
-        final uploadTask = await ref.putFile(file, metadata);
+        
+        final uploadTask = await ref.putData(data, metadata);
         final url = await uploadTask.ref.getDownloadURL();
         urls.add(url);
       }
@@ -55,15 +58,17 @@ class AboutUsProvider with ChangeNotifier {
       final success = await _db.addMemory(memory);
       if (success) {
         await fetchMemories();
+        _isLoading = false;
+        notifyListeners();
+        return null; // Success
+      } else {
+        throw 'Failed to save memory details to database.';
       }
-      _isLoading = false;
-      notifyListeners();
-      return success;
     } catch (e) {
       debugPrint('!!! ADD MEMORY ERROR: $e');
       _isLoading = false;
       notifyListeners();
-      return false;
+      return e.toString();
     }
   }
 
@@ -72,7 +77,7 @@ class AboutUsProvider with ChangeNotifier {
     await fetchMemories();
   }
 
-  Future<bool> updateMemory({
+  Future<String?> updateMemory({
     required String id,
     required String note,
     required List<String> existingUrls,
@@ -93,8 +98,10 @@ class AboutUsProvider with ChangeNotifier {
         final filename = '${DateTime.now().millisecondsSinceEpoch}_update_$i.${newTypes[i] == 'video' ? 'mp4' : 'jpg'}';
         final ref = _storage.ref().child('memories/$filename');
         
+        final Uint8List data = await file.readAsBytes();
         final metadata = SettableMetadata(contentType: newTypes[i] == 'video' ? 'video/mp4' : 'image/jpeg');
-        final uploadTask = await ref.putFile(file, metadata);
+        
+        final uploadTask = await ref.putData(data, metadata);
         final url = await uploadTask.ref.getDownloadURL();
         finalUrls.add(url);
         finalTypes.add(newTypes[i]);
@@ -105,22 +112,24 @@ class AboutUsProvider with ChangeNotifier {
         note: note,
         mediaUrls: finalUrls,
         mediaTypes: finalTypes,
-        date: DateTime.now(), // Update date to show it was edited recently? Or keep original? Let's keep original or update it.
+        date: DateTime.now(),
         adminName: adminName,
       );
 
       final success = await _db.updateMemory(memory);
       if (success) {
         await fetchMemories();
+        _isLoading = false;
+        notifyListeners();
+        return null;
+      } else {
+        throw 'Failed to update memory details in database.';
       }
-      _isLoading = false;
-      notifyListeners();
-      return success;
     } catch (e) {
       debugPrint('!!! UPDATE MEMORY ERROR: $e');
       _isLoading = false;
       notifyListeners();
-      return false;
+      return e.toString();
     }
   }
 }

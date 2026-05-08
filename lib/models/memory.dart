@@ -3,8 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Memory {
   final String? id;
   final String note;
-  final List<String> mediaUrls;
-  final List<String> mediaTypes; // 'image' or 'video'
+  final List<String> mediaUrls; // Now stores base64 strings
   final DateTime date;
   final String adminName;
 
@@ -12,7 +11,6 @@ class Memory {
     this.id,
     required this.note,
     required this.mediaUrls,
-    required this.mediaTypes,
     required this.date,
     required this.adminName,
   });
@@ -21,7 +19,6 @@ class Memory {
     return {
       'note': note,
       'mediaUrls': mediaUrls,
-      'mediaTypes': mediaTypes,
       'date': Timestamp.fromDate(date),
       'adminName': adminName,
     };
@@ -32,7 +29,6 @@ class Memory {
       id: docId,
       note: map['note'] ?? '',
       mediaUrls: List<String>.from(map['mediaUrls'] ?? []),
-      mediaTypes: List<String>.from(map['mediaTypes'] ?? []),
       date: (map['date'] as Timestamp).toDate(),
       adminName: map['adminName'] ?? 'Admin',
     );

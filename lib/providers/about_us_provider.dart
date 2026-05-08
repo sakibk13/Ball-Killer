@@ -1,6 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../models/memory.dart';
 import '../services/database_service.dart';
 
@@ -12,7 +13,6 @@ class AboutUsProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
 
   final DatabaseService _db = DatabaseService();
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   Future<void> fetchMemories() async {
     _isLoading = true;
@@ -25,32 +25,22 @@ class AboutUsProvider with ChangeNotifier {
   Future<String?> addMemory({
     required String note,
     required List<File> files,
-    required List<String> types,
     required String adminName,
   }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      List<String> urls = [];
-      for (int i = 0; i < files.length; i++) {
-        final file = files[i];
-        final filename = '${DateTime.now().millisecondsSinceEpoch}_$i.${types[i] == 'video' ? 'mp4' : 'jpg'}';
-        final ref = _storage.ref().child('memories/$filename');
-        
-        // Read file as bytes for more reliable upload
-        final Uint8List data = await file.readAsBytes();
-        final metadata = SettableMetadata(contentType: types[i] == 'video' ? 'video/mp4' : 'image/jpeg');
-        
-        final uploadTask = await ref.putData(data, metadata);
-        final url = await uploadTask.ref.getDownloadURL();
-        urls.add(url);
+      List<String> base64Images = [];
+      for (var file in files) {
+        final bytes = await file.readAsBytes();
+        // Base64 encoding for database storage
+        base64Images.add(base64Encode(bytes));
       }
 
       final memory = Memory(
         note: note,
-        mediaUrls: urls,
-        mediaTypes: types,
+        mediaUrls: base64Images,
         date: DateTime.now(),
         adminName: adminName,
       );
@@ -60,9 +50,9 @@ class AboutUsProvider with ChangeNotifier {
         await fetchMemories();
         _isLoading = false;
         notifyListeners();
-        return null; // Success
+        return null; 
       } else {
-        throw 'Failed to save memory details to database.';
+        throw 'Database save failed.';
       }
     } catch (e) {
       debugPrint('!!! ADD MEMORY ERROR: $e');
@@ -73,45 +63,36 @@ class AboutUsProvider with ChangeNotifier {
   }
 
   Future<void> deleteMemory(String id) async {
-    await _db.deleteMemory(id);
-    await fetchMemories();
+    try {
+      await _db.deleteMemory(id);
+      await fetchMemories();
+    } catch (e) {
+      debugPrint('!!! DELETE MEMORY ERROR: $e');
+    }
   }
 
   Future<String?> updateMemory({
     required String id,
     required String note,
-    required List<String> existingUrls,
-    required List<String> existingTypes,
+    required List<String> existingBase64,
     required List<File> newFiles,
-    required List<String> newTypes,
     required String adminName,
   }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      List<String> finalUrls = List.from(existingUrls);
-      List<String> finalTypes = List.from(existingTypes);
+      List<String> finalBase64 = List.from(existingBase64);
 
-      for (int i = 0; i < newFiles.length; i++) {
-        final file = newFiles[i];
-        final filename = '${DateTime.now().millisecondsSinceEpoch}_update_$i.${newTypes[i] == 'video' ? 'mp4' : 'jpg'}';
-        final ref = _storage.ref().child('memories/$filename');
-        
-        final Uint8List data = await file.readAsBytes();
-        final metadata = SettableMetadata(contentType: newTypes[i] == 'video' ? 'video/mp4' : 'image/jpeg');
-        
-        final uploadTask = await ref.putData(data, metadata);
-        final url = await uploadTask.ref.getDownloadURL();
-        finalUrls.add(url);
-        finalTypes.add(newTypes[i]);
+      for (var file in newFiles) {
+        final bytes = await file.readAsBytes();
+        finalBase64.add(base64Encode(bytes));
       }
 
       final memory = Memory(
         id: id,
         note: note,
-        mediaUrls: finalUrls,
-        mediaTypes: finalTypes,
+        mediaUrls: finalBase64,
         date: DateTime.now(),
         adminName: adminName,
       );
@@ -123,7 +104,7 @@ class AboutUsProvider with ChangeNotifier {
         notifyListeners();
         return null;
       } else {
-        throw 'Failed to update memory details in database.';
+        throw 'Database update failed.';
       }
     } catch (e) {
       debugPrint('!!! UPDATE MEMORY ERROR: $e');

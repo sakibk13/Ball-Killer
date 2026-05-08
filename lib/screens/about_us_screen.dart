@@ -120,7 +120,7 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                         borderRadius: BorderRadius.circular(2),
                         child: Stack(
                           children: [
-                            Image.network(m.mediaUrls.first, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                            Image.memory(base64Decode(m.mediaUrls.first), fit: BoxFit.cover, width: double.infinity, height: double.infinity),
                             if (m.mediaUrls.length > 1)
                               Positioned(
                                 right: 5,
@@ -131,8 +131,6 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                                   child: Text('+${m.mediaUrls.length - 1}', style: const TextStyle(color: Colors.white, fontSize: 10)),
                                 ),
                               ),
-                            if (m.mediaTypes.isNotEmpty && m.mediaTypes.first == 'video')
-                              const Center(child: Icon(Icons.play_circle_fill, color: Colors.white, size: 40)),
                           ],
                         ),
                       ),
@@ -194,13 +192,8 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                       margin: const EdgeInsets.only(right: 15),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
-                        image: m.mediaTypes[i] == 'image' 
-                          ? DecorationImage(image: NetworkImage(m.mediaUrls[i]), fit: BoxFit.cover)
-                          : null,
+                        image: DecorationImage(image: MemoryImage(base64Decode(m.mediaUrls[i])), fit: BoxFit.cover),
                       ),
-                      child: m.mediaTypes[i] == 'video'
-                        ? Center(child: Icon(Icons.video_library, color: Colors.tealAccent, size: 50))
-                        : null,
                     );
                   },
                 ),

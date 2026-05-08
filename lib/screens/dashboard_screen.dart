@@ -291,10 +291,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                             ],
                           ),
                           const SizedBox(height: 15),
-                          _buildQuickActionsGrid(isAdmin, authProvider.isGuest),
+                          _buildQuickActionsGrid(isAdmin, authProvider.isGuest, screenWidth),
 
                           const SizedBox(height: 35),
-                          _buildSecondaryActionsGrid(isAdmin, authProvider.isGuest),
+                          _buildSecondaryActionsGrid(isAdmin, authProvider.isGuest, screenWidth),
                           
                           const SizedBox(height: 40),
                         ],

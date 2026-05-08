@@ -8,6 +8,7 @@ import '../models/inventory.dart';
 import '../models/fine_payment.dart';
 import '../models/fund.dart';
 import '../models/audit_log.dart';
+import '../models/memory.dart';
 import '../services/cloud_sync_service.dart';
 
 class DatabaseService {
@@ -561,6 +562,35 @@ class DatabaseService {
     } catch (e) {
       debugPrint('!!! UPDATE PASSWORD ERROR: $e');
       return false;
+    }
+  }
+
+  // Memory operations (About Us)
+  Future<List<Memory>> getMemories() async {
+    try {
+      final snap = await _db.collection('memories').orderBy('date', descending: true).get();
+      return snap.docs.map((doc) => Memory.fromMap(doc.data(), docId: doc.id)).toList();
+    } catch (e) {
+      debugPrint('!!! GET MEMORIES ERROR: $e');
+      return [];
+    }
+  }
+
+  Future<bool> addMemory(Memory memory) async {
+    try {
+      await _db.collection('memories').add(memory.toMap());
+      return true;
+    } catch (e) {
+      debugPrint('!!! ADD MEMORY ERROR: $e');
+      return false;
+    }
+  }
+
+  Future<void> deleteMemory(String id) async {
+    try {
+      await _db.collection('memories').doc(id).delete();
+    } catch (e) {
+      debugPrint('!!! DELETE MEMORY ERROR: $e');
     }
   }
 }

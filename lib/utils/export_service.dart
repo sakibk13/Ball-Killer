@@ -27,60 +27,71 @@ class ExportService {
     final pdf = pw.Document();
     await addFundReport(pdf, funds: funds, grandTotal: grandTotal, players: players);
     await addPaymentInstructionPage(pdf);
-    await _saveAndDownload(await pdf.save(), 'club_fund_report.pdf');
+    await sharePdf(await pdf.save(), 'club_fund_report.pdf');
   }
 
   static Future<void> exportPlayerStatusReport({required List<Map<String, dynamic>> players}) async {
     final pdf = pw.Document();
     await addPlayerStatusReport(pdf, players: players);
     await addPaymentInstructionPage(pdf);
-    await _saveAndDownload(await pdf.save(), 'master_player_status.pdf');
+    await sharePdf(await pdf.save(), 'master_player_status.pdf');
   }
 
   static Future<void> exportFinancialSummaryReport({required String monthYear, required Map<String, Map<String, double>> data, required List<dynamic> players}) async {
     final pdf = pw.Document();
     await addFinancialSummaryReport(pdf, monthYear: monthYear, data: data, players: players);
     await addPaymentInstructionPage(pdf);
-    await _saveAndDownload(await pdf.save(), 'financial_summary.pdf');
+    await sharePdf(await pdf.save(), 'financial_summary.pdf');
   }
 
   static Future<void> exportFinancialDetailedReport({required String monthYear, required List<dynamic> contributions, required List<dynamic> players}) async {
     final pdf = pw.Document();
     await addFinancialDetailedReport(pdf, monthYear: monthYear, contributions: contributions, players: players);
     await addPaymentInstructionPage(pdf);
-    await _saveAndDownload(await pdf.save(), 'financial_detailed.pdf');
+    await sharePdf(await pdf.save(), 'financial_detailed.pdf');
   }
 
   static Future<void> exportOtherContributionsReport({required String monthYear, required List<Contribution> contributions, required List<dynamic> players}) async {
     final pdf = pw.Document();
     await addOtherContributionsReport(pdf, monthYear: monthYear, contributions: contributions, players: players);
     await addPaymentInstructionPage(pdf);
-    await _saveAndDownload(await pdf.save(), 'other_contributions.pdf');
+    await sharePdf(await pdf.save(), 'other_contributions.pdf');
   }
 
   static Future<void> exportLeaderboard({required String monthYear, required List<Map<String, dynamic>> players}) async {
     final pdf = pw.Document();
     await addLeaderboard(pdf, monthYear: monthYear, players: players);
     await addPaymentInstructionPage(pdf);
-    await _saveAndDownload(await pdf.save(), 'leaderboard.pdf');
+    await sharePdf(await pdf.save(), 'leaderboard.pdf');
   }
 
   static Future<void> exportFineReport({required String monthYear, required List<Map<String, dynamic>> sortedPlayers}) async {
     final pdf = pw.Document();
     await addFineReport(pdf, monthYear: monthYear, sortedPlayers: sortedPlayers);
     await addPaymentInstructionPage(pdf);
-    await _saveAndDownload(await pdf.save(), 'fine_report.pdf');
+    await sharePdf(await pdf.save(), 'fine_report.pdf');
   }
 
   static Future<void> downloadMultiplePdfs(List<Uint8List> pdfs, List<String> filenames) async {
-    final tempDir = await getTemporaryDirectory();
-    final List<XFile> xFiles = [];
-    for (int i = 0; i < pdfs.length; i++) {
-      final file = File('${tempDir.path}/${filenames[i]}');
-      await file.writeAsBytes(pdfs[i]);
-      xFiles.add(XFile(file.path));
+    try {
+      if (pdfs.isEmpty) return;
+      
+      // If only one PDF, use sharePdf (more reliable on Web)
+      if (pdfs.length == 1) {
+        await sharePdf(pdfs.first, filenames.first);
+        return;
+      }
+
+      final List<XFile> xFiles = [];
+      for (int i = 0; i < pdfs.length; i++) {
+        xFiles.add(XFile.fromData(pdfs[i], name: filenames[i], mimeType: 'application/pdf'));
+      }
+      await Share.shareXFiles(xFiles, text: 'Download club reports');
+    } catch (e) {
+      if (pdfs.isNotEmpty) {
+        await sharePdf(pdfs.first, filenames.first);
+      }
     }
-    await Share.shareXFiles(xFiles, text: 'Download club reports');
   }
 
   // --- PDF BUILDERS ---
@@ -271,17 +282,42 @@ class ExportService {
         build: (pw.Context context) {
           return [
             _buildTable(
-              columnWidths: {0: const pw.FixedColumnWidth(25), 1: const pw.FlexColumnWidth(2), 2: const pw.FixedColumnWidth(40), 3: const pw.FixedColumnWidth(50), 4: const pw.FixedColumnWidth(50), 5: const pw.FixedColumnWidth(50), 6: const pw.FixedColumnWidth(50)},
+              columnWidths: {
+                0: const pw.FixedColumnWidth(35), // Rank
+                1: const pw.FixedColumnWidth(35), // Photo
+                2: const pw.FlexColumnWidth(1.2), // Name (Reduced)
+                3: const pw.FixedColumnWidth(40), // Balls
+                4: const pw.FixedColumnWidth(50), // Fine
+                5: const pw.FixedColumnWidth(50), // Paid
+                6: const pw.FixedColumnWidth(50), // Due
+                7: const pw.FixedColumnWidth(50)  // Credit
+              },
               [
                 pw.TableRow(decoration: pw.BoxDecoration(color: primaryColor), children: [
-                    _buildHeaderCell('Rank'), _buildHeaderCell('Name'), _buildHeaderCell('Balls'), _buildHeaderCell('Fine'), _buildHeaderCell('Paid'), _buildHeaderCell('Due'), _buildHeaderCell('Credit')
+                    _buildHeaderCell('Rank', align: pw.TextAlign.center), 
+                    _buildHeaderCell('PIC', align: pw.TextAlign.center),
+                    _buildHeaderCell('Name'), 
+                    _buildHeaderCell('Balls', align: pw.TextAlign.center), 
+                    _buildHeaderCell('Fine', align: pw.TextAlign.right), 
+                    _buildHeaderCell('Paid', align: pw.TextAlign.right), 
+                    _buildHeaderCell('Due', align: pw.TextAlign.right), 
+                    _buildHeaderCell('Credit', align: pw.TextAlign.right)
                 ]),
                 ...players.asMap().entries.map((entry) {
                   final p = entry.value;
+                  pw.MemoryImage? playerPhoto;
+                  try {
+                    if (p['photoUrl'] != null && p['photoUrl'] != '') playerPhoto = pw.MemoryImage(base64Decode(p['photoUrl']));
+                  } catch (_) {}
+
                   return pw.TableRow(
                     decoration: pw.BoxDecoration(color: entry.key % 2 == 0 ? PdfColors.white : bgLight),
                     children: [
                       _buildDataCell('${entry.key + 1}', align: pw.TextAlign.center),
+                      pw.Padding(padding: const pw.EdgeInsets.all(2), child: pw.Center(child: pw.Container(
+                        height: 15, width: 15, decoration: pw.BoxDecoration(shape: pw.BoxShape.circle, color: PdfColors.grey200, image: playerPhoto != null ? pw.DecorationImage(image: playerPhoto, fit: pw.BoxFit.cover) : null),
+                        child: playerPhoto == null ? pw.Center(child: pw.Text(p['name'][0].toUpperCase(), style: const pw.TextStyle(fontSize: 6))) : null,
+                      ))),
                       _buildDataCell(StringUtils.capitalize(p['name']), fontWeight: pw.FontWeight.bold),
                       _buildDataCell('${p['total']}', align: pw.TextAlign.center),
                       _buildDataCell('${(p['totalFine'] as double).toInt()}', align: pw.TextAlign.right),
@@ -501,10 +537,26 @@ class ExportService {
         build: (pw.Context context) {
           return [
             _buildTable(
-              columnWidths: {0: const pw.FixedColumnWidth(25), 1: const pw.FixedColumnWidth(30), 2: const pw.FlexColumnWidth(2), 3: const pw.FixedColumnWidth(40), 4: const pw.FixedColumnWidth(50), 5: const pw.FixedColumnWidth(50), 6: const pw.FixedColumnWidth(50), 7: const pw.FixedColumnWidth(50)},
+              columnWidths: {
+                0: const pw.FixedColumnWidth(25), // No.
+                1: const pw.FixedColumnWidth(30), // PIC
+                2: const pw.FlexColumnWidth(1.5), // Name
+                3: const pw.FixedColumnWidth(35), // Balls
+                4: const pw.FixedColumnWidth(45), // Fine
+                5: const pw.FixedColumnWidth(45), // Paid
+                6: const pw.FixedColumnWidth(45), // Due
+                7: const pw.FixedColumnWidth(45)  // Credit
+              },
               [
                 pw.TableRow(decoration: pw.BoxDecoration(color: primaryColor), children: [
-                    _buildHeaderCell('No.'), _buildHeaderCell('PIC'), _buildHeaderCell('Player Name'), _buildHeaderCell('Balls'), _buildHeaderCell('Fine'), _buildHeaderCell('Paid'), _buildHeaderCell('Due'), _buildHeaderCell('Credit')
+                    _buildHeaderCell('No.', align: pw.TextAlign.center), 
+                    _buildHeaderCell('PIC', align: pw.TextAlign.center), 
+                    _buildHeaderCell('Player Name'), 
+                    _buildHeaderCell('Balls', align: pw.TextAlign.center), 
+                    _buildHeaderCell('Fine', align: pw.TextAlign.right), 
+                    _buildHeaderCell('Paid', align: pw.TextAlign.right), 
+                    _buildHeaderCell('Due', align: pw.TextAlign.right), 
+                    _buildHeaderCell('Credit', align: pw.TextAlign.right)
                 ]),
                 ...sortedPlayers.asMap().entries.map((entry) {
                   final p = entry.value;
@@ -666,7 +718,7 @@ class ExportService {
     );
   }
 
-  static Future<void> _saveAndDownload(Uint8List bytes, String fileName) async {
+  static Future<void> sharePdf(Uint8List bytes, String fileName) async {
     await Printing.sharePdf(bytes: bytes, filename: fileName);
   }
 }

@@ -9,6 +9,8 @@ import '../providers/ball_provider.dart';
 import '../providers/fine_provider.dart';
 import '../providers/contribution_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/fund_provider.dart';
+import '../models/fund.dart';
 import '../models/fine_payment.dart';
 import '../models/contribution.dart';
 import '../utils/export_service.dart';
@@ -520,9 +522,9 @@ class _FineScreenState extends State<FineScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('NET BALANCE', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 14)),
+                          Text('TOTAL DUE', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 14)),
                           Text(
-                            lifetimeDue > 0 ? '- ${lifetimeDue.toInt()} ৳' : '+ ${credit.toInt()} ৳',
+                            lifetimeDue > 0 ? '${lifetimeDue.toInt()} ৳' : '0 ৳',
                             style: GoogleFonts.bebasNeue(
                               color: lifetimeDue > 0 ? Colors.redAccent : Colors.greenAccent, 
                               fontSize: 22
@@ -774,7 +776,7 @@ class _FineScreenState extends State<FineScreen> {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
     DateTime selectedDate = DateTime.now();
-    bool syncToFinancials = true;
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -888,9 +890,9 @@ class _FineScreenState extends State<FineScreen> {
               onPressed: () async {
                 if (formKey.currentState!.validate() && selectedPlayerId != null) {
                   final amount = double.parse(amountController.text);
-                  bool success = false;
+                  final adminName = authProvider.currentUser?.name ?? 'Admin';
                   
-                  // ALWAYS add to financials (Contribution)
+                  // 1. Add to Contribution (for Financial Summary)
                   final contrib = Contribution(
                     playerId: selectedPlayerId,
                     name: selectedPlayerName!,
@@ -901,11 +903,22 @@ class _FineScreenState extends State<FineScreen> {
                     isFinePayment: true,
                     isOther: false,
                   );
-                  success = await Provider.of<ContributionProvider>(context, listen: false).addContribution(contrib);
+                  await Provider.of<ContributionProvider>(context, listen: false).addContribution(contrib);
                   
-                  if (success) {
+                  // 2. Add to Fund (for Financial/Fund page) - AUTOMATIC
+                  final fund = Fund(
+                    playerId: selectedPlayerId,
+                    name: selectedPlayerName!,
+                    amount: amount,
+                    date: selectedDate,
+                    note: "Fine Collection${noteController.text.isNotEmpty ? ": ${noteController.text}" : ""}",
+                    type: 'INCOME',
+                  );
+                  await Provider.of<FundProvider>(context, listen: false).addFund(fund, adminName);
+
+                  if (mounted) {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record added successfully')));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record added to both fines and club fund')));
                   }
                 }
               },

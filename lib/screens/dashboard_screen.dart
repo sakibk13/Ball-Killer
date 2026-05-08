@@ -30,6 +30,7 @@ import 'manage_players_screen.dart';
 import 'audit_log_screen.dart';
 import 'profile_screen.dart';
 import 'admin_approvals_screen.dart';
+import 'about_us_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -472,6 +473,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         _buildActionGridItem('TRACK OVERVIEW', Icons.assignment_late_outlined, Colors.purpleAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecordsScreen()))),
         _buildActionGridItem('PLAYER FINES', Icons.money_off_rounded, Colors.redAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FineScreen()))),
         _buildActionGridItem('PLAYER STATUS', Icons.person_search_rounded, Colors.blueAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerStatusScreen()))),
+        _buildActionGridItem('ABOUT US', Icons.auto_awesome_rounded, Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutUsScreen()))),
       ],
     );
   }

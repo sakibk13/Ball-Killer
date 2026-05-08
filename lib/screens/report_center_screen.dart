@@ -187,67 +187,136 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
         title: Text('REPORT CENTER', style: GoogleFonts.bebasNeue(color: Colors.white, letterSpacing: 1.2)),
         backgroundColor: const Color(0xFF020C3B),
         elevation: 0,
+        centerTitle: true,
       ),
-      body: Stack(
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: Padding(
-                padding: const EdgeInsets.all(25),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildInfoCard(),
-                    const SizedBox(height: 30),
-                    Text('SELECT MONTH', style: GoogleFonts.bebasNeue(color: Colors.orange, fontSize: 18, letterSpacing: 1)),
-                    const SizedBox(height: 15),
-                    Expanded(
-                      child: GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 2.8,
-                        ),
-                        itemCount: _monthList.length,
-                        itemBuilder: (ctx, i) {
-                          final month = _monthList[i];
-                          final isSelected = _selectedMonth == month;
-                          final label = month == 'Overall' ? 'OVERALL' : month.toUpperCase();
+      body: Consumer<BallProvider>(
+        builder: (context, ballProvider, child) {
+          final monthList = _getMonths(ballProvider);
+          if (_selectedMonth == null || !monthList.contains(_selectedMonth)) {
+            _selectedMonth = monthList.first;
+          }
 
-                          return InkWell(
-                            onTap: () => setState(() => _selectedMonth = month),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isSelected ? Colors.orange.withOpacity(0.2) : Colors.white.withOpacity(0.05),
-                                borderRadius: BorderRadius.circular(15),
-                                border: Border.all(color: isSelected ? Colors.orange : Colors.white10),
-                                boxShadow: isSelected ? [BoxShadow(color: Colors.orange.withOpacity(0.1), blurRadius: 10)] : null,
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(label, textAlign: TextAlign.center, style: GoogleFonts.bebasNeue(color: isSelected ? Colors.orange : Colors.white38, fontSize: 13)),
+          return Stack(
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInfoCard(),
+                        const SizedBox(height: 25),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          child: Text('SELECT MONTH', style: GoogleFonts.bebasNeue(color: Colors.orange, fontSize: 20, letterSpacing: 1.2)),
+                        ),
+                        const SizedBox(height: 15),
+                        Expanded(
+                          child: GridView.builder(
+                            physics: const BouncingScrollPhysics(),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+                              crossAxisSpacing: 15,
+                              mainAxisSpacing: 15,
+                              childAspectRatio: 2.2,
                             ),
-                          );
-                        },
-                      ),
+                            itemCount: monthList.length,
+                            itemBuilder: (ctx, i) {
+                              final month = monthList[i];
+                              final isSelected = _selectedMonth == month;
+                              final label = month == 'Overall' ? 'OVERALL' : month.toUpperCase();
+
+                              return InkWell(
+                                onTap: () => setState(() => _selectedMonth = month),
+                                borderRadius: BorderRadius.circular(15),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? Colors.orange.withOpacity(0.25) : Colors.white.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(15),
+                                    border: Border.all(color: isSelected ? Colors.orange : Colors.white24, width: 1.5),
+                                    boxShadow: isSelected ? [BoxShadow(color: Colors.orange.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))] : null,
+                                  ),
+                                  alignment: Alignment.center,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  child: Text(
+                                    label, 
+                                    textAlign: TextAlign.center, 
+                                    style: GoogleFonts.bebasNeue(
+                                      color: isSelected ? Colors.orange : Colors.white, 
+                                      fontSize: 15,
+                                      letterSpacing: 0.5
+                                    )
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
+              if (_isProcessing)
+                Container(
+                  color: Colors.black54,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(color: Colors.orange),
+                        const SizedBox(height: 20),
+                        Text('GENERATING REPORT...', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 18)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+      bottomNavigationBar: Container(
+        color: const Color(0xFF020C3B),
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: _buildBottomAction(),
             ),
           ),
-          if (_isProcessing)
-            Container(
-              color: Colors.black54,
-              child: const Center(child: CircularProgressIndicator(color: Colors.orange)),
-            ),
-        ],
-      ),
-      bottomNavigationBar: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: _buildBottomAction(),
         ),
       ),
     );
+  }
+
+  List<String> _getMonths(BallProvider ballProvider) {
+    List<String> list = ['Overall'];
+    Set<String> months = {};
+    for (var r in ballProvider.allRecords) {
+      if (r.monthYear.isNotEmpty) {
+        months.add(DateUtilsHelper.normalizeMonthYear(r.monthYear));
+      }
+    }
+    
+    months.add(DateFormat('MMMM yyyy').format(DateTime.now()));
+    DateTime prevMonth = DateTime(DateTime.now().year, DateTime.now().month - 1, 1);
+    months.add(DateFormat('MMMM yyyy').format(prevMonth));
+
+    List<String> sortedMonths = months.toList();
+    sortedMonths.sort((a, b) {
+      try {
+        DateTime da = DateFormat('MMMM yyyy').parse(a);
+        DateTime db = DateFormat('MMMM yyyy').parse(b);
+        return db.compareTo(da);
+      } catch (_) {
+        return b.compareTo(a);
+      }
+    });
+    
+    list.addAll(sortedMonths);
+    return list;
   }
 
   Widget _buildInfoCard() {

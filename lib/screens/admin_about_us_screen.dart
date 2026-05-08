@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/about_us_provider.dart';
 import '../providers/auth_provider.dart';
+import '../utils/status_dialog.dart';
 
 class AdminAboutUsScreen extends StatefulWidget {
   const AdminAboutUsScreen({super.key});
@@ -146,8 +147,16 @@ class _AdminAboutUsScreenState extends State<AdminAboutUsScreen> {
                     types: _fileTypes,
                     adminName: auth.currentUser?.name ?? 'Admin',
                   );
-                  if (success && mounted) {
-                    Navigator.pop(context);
+                  
+                  if (mounted) {
+                    if (success) {
+                      StatusDialog.show(context, title: "SUCCESS", message: "Memory hung on the wall!", isSuccess: true);
+                      Future.delayed(const Duration(seconds: 1), () {
+                        if (mounted) Navigator.pop(context);
+                      });
+                    } else {
+                      StatusDialog.show(context, title: "ERROR", message: "Failed to upload memory. Please check your connection.", isSuccess: false);
+                    }
                   }
                 },
                 style: ElevatedButton.styleFrom(

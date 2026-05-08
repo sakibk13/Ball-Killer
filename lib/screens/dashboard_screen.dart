@@ -471,9 +471,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       children: [
         _buildActionGridItem('LEADERBOARD', Icons.workspace_premium_rounded, Colors.cyanAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
         _buildActionGridItem('TRACK OVERVIEW', Icons.assignment_late_outlined, Colors.purpleAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecordsScreen()))),
+        _buildActionGridItem('ABOUT US', Icons.auto_awesome_rounded, Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutUsScreen()))),
         _buildActionGridItem('PLAYER FINES', Icons.money_off_rounded, Colors.redAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FineScreen()))),
         _buildActionGridItem('PLAYER STATUS', Icons.person_search_rounded, Colors.blueAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerStatusScreen()))),
-        _buildActionGridItem('ABOUT US', Icons.auto_awesome_rounded, Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutUsScreen()))),
       ],
     );
   }

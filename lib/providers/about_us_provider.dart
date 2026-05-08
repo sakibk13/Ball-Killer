@@ -35,8 +35,11 @@ class AboutUsProvider with ChangeNotifier {
       List<String> urls = [];
       for (int i = 0; i < files.length; i++) {
         final file = files[i];
-        final ref = _storage.ref().child('memories/${DateTime.now().millisecondsSinceEpoch}_$i');
-        final uploadTask = await ref.putFile(file);
+        final filename = '${DateTime.now().millisecondsSinceEpoch}_$i.${types[i] == 'video' ? 'mp4' : 'jpg'}';
+        final ref = _storage.ref().child('memories/$filename');
+        
+        final metadata = SettableMetadata(contentType: types[i] == 'video' ? 'video/mp4' : 'image/jpeg');
+        final uploadTask = await ref.putFile(file, metadata);
         final url = await uploadTask.ref.getDownloadURL();
         urls.add(url);
       }

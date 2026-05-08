@@ -336,7 +336,7 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
                         ballTape: finalNote,
                         ballCount: balls,
                         tapeCount: tapes,
-                        isFinePayment: _isOther ? false : _isFinePayment,
+                        isFinePayment: !_isOther, // Automatically true for cash
                         isOther: _isOther,
                         photoUrl: _pickedImageBase64,
                       );

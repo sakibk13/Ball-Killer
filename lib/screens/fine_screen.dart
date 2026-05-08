@@ -871,22 +871,6 @@ class _FineScreenState extends State<FineScreen> {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.03), borderRadius: BorderRadius.circular(12)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text("ADD TO FINANCIALS?", style: GoogleFonts.poppins(color: Colors.white60, fontSize: 11)),
-                        Switch(
-                          value: syncToFinancials, 
-                          onChanged: (v) => setDialogState(() => syncToFinancials = v),
-                          activeThumbColor: Colors.tealAccent,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 15),
                   TextFormField(
                     controller: noteController,
                     decoration: _inputDecoration('OPTIONAL NOTE'),
@@ -905,28 +889,20 @@ class _FineScreenState extends State<FineScreen> {
                 if (formKey.currentState!.validate() && selectedPlayerId != null) {
                   final amount = double.parse(amountController.text);
                   bool success = false;
-                  if (syncToFinancials) {
-                    final contrib = Contribution(
-                      playerId: selectedPlayerId,
-                      name: selectedPlayerName!,
-                      taka: amount,
-                      date: selectedDate,
-                      monthYear: DateFormat('MMMM yyyy').format(selectedDate),
-                      ballTape: "Fine Collection: ${noteController.text}",
-                      isFinePayment: true,
-                    );
-                    success = await Provider.of<ContributionProvider>(context, listen: false).addContribution(contrib);
-                  } else {
-                    final payment = FinePayment(
-                      playerId: selectedPlayerId!,
-                      playerName: selectedPlayerName!,
-                      amountPaid: amount,
-                      date: selectedDate,
-                      note: noteController.text,
-                      monthYear: DateFormat('MMMM yyyy').format(selectedDate),
-                    );
-                    success = await Provider.of<FineProvider>(context, listen: false).addPayment(payment);
-                  }
+                  
+                  // ALWAYS add to financials (Contribution)
+                  final contrib = Contribution(
+                    playerId: selectedPlayerId,
+                    name: selectedPlayerName!,
+                    taka: amount,
+                    date: selectedDate,
+                    monthYear: DateFormat('MMMM yyyy').format(selectedDate),
+                    ballTape: "Fine Collection${noteController.text.isNotEmpty ? ": ${noteController.text}" : ""}",
+                    isFinePayment: true,
+                    isOther: false,
+                  );
+                  success = await Provider.of<ContributionProvider>(context, listen: false).addContribution(contrib);
+                  
                   if (success) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record added successfully')));

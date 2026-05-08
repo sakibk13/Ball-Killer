@@ -38,20 +38,15 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
   void _generateMonthList() {
     _monthList = ['Overall'];
     final ballProvider = Provider.of<BallProvider>(context, listen: false);
-    final fineProvider = Provider.of<FineProvider>(context, listen: false);
-    final contributionProvider = Provider.of<ContributionProvider>(context, listen: false);
     
     Set<String> months = {};
     for (var r in ballProvider.allRecords) {
-      if (r.monthYear.isNotEmpty) months.add(DateUtilsHelper.normalizeMonthYear(r.monthYear));
-    }
-    for (var p in fineProvider.payments) {
-      if (p.monthYear.isNotEmpty) months.add(DateUtilsHelper.normalizeMonthYear(p.monthYear));
-    }
-    for (var c in contributionProvider.contributions) {
-      if (c.monthYear.isNotEmpty) months.add(DateUtilsHelper.normalizeMonthYear(c.monthYear));
+      if (r.monthYear.isNotEmpty) {
+        months.add(DateUtilsHelper.normalizeMonthYear(r.monthYear));
+      }
     }
     
+    // Ensure current and previous months are included
     months.add(DateFormat('MMMM yyyy').format(DateTime.now()));
     DateTime prevMonth = DateTime(DateTime.now().year, DateTime.now().month - 1, 1);
     months.add(DateFormat('MMMM yyyy').format(prevMonth));

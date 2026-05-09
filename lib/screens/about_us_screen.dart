@@ -70,102 +70,129 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
   Widget _buildMemoriesWall(List<Memory> memories) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 30),
-      child: Wrap(
-        spacing: 15,
-        runSpacing: 25,
-        alignment: WrapAlignment.center,
+      child: Column(
         children: memories.map((m) => _buildHangingMemory(m)).toList(),
       ),
     );
   }
 
   Widget _buildHangingMemory(Memory m) {
-    // Random rotation between -3 and 3 degrees
-    final double rotation = (Random().nextDouble() * 0.1) - 0.05;
+    final double rotation = (Random().nextDouble() * 0.06) - 0.03;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double cardWidth = screenWidth > 600 ? 500 : screenWidth * 0.9;
     
-    return Transform.rotate(
-      angle: rotation,
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.42,
-        constraints: const BoxConstraints(maxWidth: 200),
-        child: Column(
-          children: [
-            // The "string" or "clip"
-            Container(
-              width: 2,
-              height: 20,
-              color: Colors.white24,
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(2),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(4, 4)),
-                ],
+    return Center(
+      child: Transform.rotate(
+        angle: rotation,
+        child: Container(
+          width: cardWidth,
+          margin: const EdgeInsets.only(bottom: 40),
+          child: Column(
+            children: [
+              // The "hanging clip"
+              Container(
+                width: 3,
+                height: 25,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Media Preview (Multiple photos)
-                  if (m.mediaUrls.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 15, offset: const Offset(5, 8)),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Multi-Image Display (Full Visibility)
+                    if (m.mediaUrls.isNotEmpty)
+                      _buildImageGrid(m.mediaUrls),
+                    
+                    const SizedBox(height: 15),
+                    
+                    // Note (Sticky note style - full text)
                     Container(
-                      height: 120,
                       width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(2),
+                        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1)),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: Stack(
-                          children: [
-                            Image.memory(base64Decode(m.mediaUrls.first), fit: BoxFit.cover, width: double.infinity, height: double.infinity),
-                            if (m.mediaUrls.length > 1)
-                              Positioned(
-                                right: 5,
-                                bottom: 5,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10)),
-                                  child: Text('+${m.mediaUrls.length - 1}', style: const TextStyle(color: Colors.white, fontSize: 10)),
-                                ),
-                              ),
-                          ],
+                      child: Text(
+                        m.note,
+                        style: GoogleFonts.caveat(
+                          color: Colors.black87, 
+                          fontSize: 22, 
+                          fontWeight: FontWeight.bold,
+                          height: 1.1,
                         ),
                       ),
                     ),
-                  const SizedBox(height: 8),
-                  // Note (Sticky note style)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(5),
-                    child: Text(
-                      m.note,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.caveat(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
+                    
+                    const SizedBox(height: 10),
+                    
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'POSTED ON ${DateFormat('MMMM dd, yyyy').format(m.date).toUpperCase()}', 
+                          style: GoogleFonts.bebasNeue(color: Colors.black26, fontSize: 10, letterSpacing: 1)
+                        ),
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () => _showMemoryDetail(m),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.1), shape: BoxShape.circle),
+                                child: const Icon(Icons.zoom_in_rounded, color: Colors.blueAccent, size: 18),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Icon(Icons.push_pin, color: Colors.redAccent, size: 20),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(DateFormat('MMM dd').format(m.date), style: const TextStyle(color: Colors.black26, fontSize: 8)),
-                      GestureDetector(
-                        onTap: () => _showMemoryDetail(m),
-                        child: const Icon(Icons.open_in_new, color: Colors.blueAccent, size: 12),
-                      ),
-                      const Icon(Icons.push_pin, color: Colors.redAccent, size: 12),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildImageGrid(List<String> urls) {
+    if (urls.length == 1) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: Image.memory(base64Decode(urls.first), fit: BoxFit.cover, width: double.infinity),
+      );
+    }
+    
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: urls.length == 2 ? 2 : (urls.length >= 3 ? 2 : 1),
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1.2,
+      ),
+      itemCount: urls.length,
+      itemBuilder: (context, i) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: Image.memory(base64Decode(urls[i]), fit: BoxFit.cover),
+        );
+      },
     );
   }
 

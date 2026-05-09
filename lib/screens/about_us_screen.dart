@@ -77,89 +77,119 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
   }
 
   Widget _buildHangingMemory(Memory m) {
-    final double rotation = (Random().nextDouble() * 0.06) - 0.03;
+    final double rotation = (Random().nextDouble() * 0.04) - 0.02;
     final double screenWidth = MediaQuery.of(context).size.width;
-    final double cardWidth = screenWidth > 600 ? 500 : screenWidth * 0.9;
+    final double cardWidth = screenWidth > 600 ? 450 : screenWidth * 0.92;
     
     return Center(
       child: Transform.rotate(
         angle: rotation,
         child: Container(
           width: cardWidth,
-          margin: const EdgeInsets.only(bottom: 40),
-          child: Column(
+          margin: const EdgeInsets.only(bottom: 50),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
             children: [
-              // The "hanging clip"
+              // Main Polaroid Card
               Container(
-                width: 3,
-                height: 25,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(2),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 15, offset: const Offset(5, 8)),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.5),
+                      blurRadius: 20,
+                      offset: const Offset(8, 12),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 1,
+                      offset: const Offset(1, 1),
+                    ),
                   ],
                 ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Multi-Image Display (Full Visibility)
+                    // Multi-Image Display
                     if (m.mediaUrls.isNotEmpty)
                       _buildImageGrid(m.mediaUrls),
                     
-                    const SizedBox(height: 15),
+                    const SizedBox(height: 20),
                     
-                    // Note (Sticky note style - full text)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
-                      decoration: BoxDecoration(
-                        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1)),
-                      ),
-                      child: Text(
-                        m.note,
-                        style: GoogleFonts.caveat(
-                          color: Colors.black87, 
-                          fontSize: 22, 
-                          fontWeight: FontWeight.bold,
-                          height: 1.1,
-                        ),
+                    // Note (Kalam font - cleaner handwritten style)
+                    Text(
+                      m.note,
+                      style: GoogleFonts.kalam(
+                        color: const Color(0xFF2C3E50), 
+                        fontSize: 20, 
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
                       ),
                     ),
                     
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 25),
                     
+                    // Footer Detail
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'POSTED ON ${DateFormat('MMMM dd, yyyy').format(m.date).toUpperCase()}', 
-                          style: GoogleFonts.bebasNeue(color: Colors.black26, fontSize: 10, letterSpacing: 1)
-                        ),
-                        Row(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            GestureDetector(
-                              onTap: () => _showMemoryDetail(m),
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.1), shape: BoxShape.circle),
-                                child: const Icon(Icons.zoom_in_rounded, color: Colors.blueAccent, size: 18),
-                              ),
+                            Text(
+                              'CAPTURED BY ${m.adminName.toUpperCase()}', 
+                              style: GoogleFonts.bebasNeue(color: Colors.grey[400], fontSize: 10, letterSpacing: 1.5)
                             ),
-                            const SizedBox(width: 10),
-                            const Icon(Icons.push_pin, color: Colors.redAccent, size: 20),
+                            Text(
+                              DateFormat('MMMM dd, yyyy').format(m.date).toUpperCase(), 
+                              style: GoogleFonts.bebasNeue(color: Colors.grey[300], fontSize: 9, letterSpacing: 1)
+                            ),
                           ],
+                        ),
+                        GestureDetector(
+                          onTap: () => _showMemoryDetail(m),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF051970).withOpacity(0.05), 
+                              borderRadius: BorderRadius.circular(8)
+                            ),
+                            child: Icon(Icons.fullscreen_rounded, color: const Color(0xFF051970).withOpacity(0.3), size: 22),
+                          ),
                         ),
                       ],
                     ),
                   ],
+                ),
+              ),
+              // 3D Red Pin
+              Positioned(
+                top: -15,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.red[700],
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 4, offset: const Offset(2, 2)),
+                    ],
+                    gradient: RadialGradient(
+                      colors: [Colors.red[400]!, Colors.red[900]!],
+                      center: const Alignment(-0.3, -0.3),
+                    ),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), shape: BoxShape.circle),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -171,8 +201,10 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
 
   Widget _buildImageGrid(List<String> urls) {
     if (urls.length == 1) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(2),
+      return Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[100]!, width: 1),
+        ),
         child: Image.memory(base64Decode(urls.first), fit: BoxFit.cover, width: double.infinity),
       );
     }
@@ -181,15 +213,17 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: urls.length == 2 ? 2 : (urls.length >= 3 ? 2 : 1),
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 1.2,
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1,
       ),
       itemCount: urls.length,
       itemBuilder: (context, i) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(2),
+        return Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[100]!, width: 1),
+          ),
           child: Image.memory(base64Decode(urls[i]), fit: BoxFit.cover),
         );
       },

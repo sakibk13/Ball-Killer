@@ -9,10 +9,11 @@ import '../models/fund.dart';
 import '../models/inventory.dart';
 import '../models/player.dart';
 import '../utils/date_utils.dart';
+import '../app_config.dart';
 
 class CloudSyncService {
   // Base URL - Can be updated with a new Deploy ID
-  static String _deployId = 'AKfycbyoCjp4KvDo_zf3Ro5Ztx22CCZWizWD2QoccX7bzd_aH5MPtJN8z0Mo8XtZl6Oz3-sU';
+  static String _deployId = AppConfig.googleDeployId;
   static const String _lastSyncKey = 'last_google_sync_time';
 
   static void setDeployId(String id) {

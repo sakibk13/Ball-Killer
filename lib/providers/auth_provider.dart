@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../services/database_service.dart';
+import '../app_config.dart';
 
 class AuthProvider with ChangeNotifier {
   User? _currentUser;
@@ -9,7 +10,7 @@ class AuthProvider with ChangeNotifier {
 
   User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
-  bool get isAdmin => _currentUser?.phone == '01832465446';
+  bool get isAdmin => _currentUser?.phone == AppConfig.adminPhone;
   bool get isGuest => _currentUser?.phone == 'guest_user';
 
   Future<void> loginAsGuest() async {
@@ -83,7 +84,7 @@ class AuthProvider with ChangeNotifier {
         name: name,
         phone: phone,
         password: password,
-        isAdmin: phone == '01832465446',
+        isAdmin: phone == AppConfig.adminPhone,
       );
       
       final success = await db.register(user);

@@ -13,6 +13,7 @@ import '../models/fine_payment.dart';
 import '../models/fund.dart';
 import 'string_utils.dart';
 import 'date_utils.dart';
+import '../app_config.dart';
 
 class ExportService {
   static final primaryColor = PdfColor.fromHex('#051970');
@@ -152,7 +153,7 @@ class ExportService {
                             pw.SizedBox(height: 12),
                             pw.Text('bKash (Personal)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: textDark)),
                             pw.SizedBox(height: 5),
-                            pw.Text('01832465446', style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#E91E63'), fontWeight: pw.FontWeight.bold)),
+                            pw.Text(AppConfig.bkashPhone, style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#E91E63'), fontWeight: pw.FontWeight.bold)),
                           ])
                         ),
                       if (bracImg != null) 
@@ -179,10 +180,10 @@ class ExportService {
                       children: [
                         pw.Text('BANK ACCOUNT DETAILS', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12, color: primaryColor, letterSpacing: 1)),
                         pw.SizedBox(height: 15),
-                        _buildBankRow('Account Name', 'SAKIB KHAN'),
-                        _buildBankRow('Account Number', '1062020640001'),
-                        _buildBankRow('Bank Name', 'BRAC Bank PLC'),
-                        _buildBankRow('Routing No.', '060261726'),
+                        _buildBankRow('Account Name', AppConfig.bankAccountName),
+                        _buildBankRow('Account Number', AppConfig.bankAccountNumber),
+                        _buildBankRow('Bank Name', AppConfig.bankName),
+                        _buildBankRow('Routing No.', AppConfig.routingNumber),
                       ],
                     ),
                   ),

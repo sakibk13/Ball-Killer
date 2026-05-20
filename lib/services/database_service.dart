@@ -10,6 +10,7 @@ import '../models/fund.dart';
 import '../models/audit_log.dart';
 import '../models/memory.dart';
 import '../services/cloud_sync_service.dart';
+import '../app_config.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -186,7 +187,7 @@ class DatabaseService {
         final user = User.fromMap(snap.docs.first.data(), docId: snap.docs.first.id);
         
         // Check for approval (Master admin always allowed)
-        if (user.status != 'approved' && phone != '01832465446') {
+        if (user.status != 'approved' && phone != AppConfig.adminPhone) {
           throw 'Your account is ${user.status}. Please wait for admin approval.';
         }
         
@@ -209,13 +210,13 @@ class DatabaseService {
       }
       
       // 2. Create the user entry as PENDING (except master admin)
-      final status = user.phone == '01832465446' ? 'approved' : 'pending';
+      final status = user.phone == AppConfig.adminPhone ? 'approved' : 'pending';
       final newUser = User(
         name: user.name,
         phone: user.phone,
         password: user.password,
         photoUrl: user.photoUrl,
-        isAdmin: user.phone == '01832465446',
+        isAdmin: user.phone == AppConfig.adminPhone,
         status: status,
       );
 

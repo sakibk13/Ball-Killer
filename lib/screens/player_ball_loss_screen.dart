@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -242,19 +243,35 @@ class _PlayerBallLossScreenState extends State<PlayerBallLossScreen> with Single
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: dayRecords.length,
                                 itemBuilder: (context, i) {
-                                  final r = dayRecords[i];
-                                  return ListTile(
-                                    dense: true,
-                                    title: Row(
-                                      children: [
-                                        Text(r.playerName.toUpperCase(), style: GoogleFonts.poppins(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                                        const Spacer(),
-                                        Text('${r.lostCount > 0 ? "+" : ""}${r.lostCount}', style: GoogleFonts.bebasNeue(color: r.lostCount >= 0 ? Colors.redAccent : Colors.greenAccent, fontSize: 16)),
-                                      ],
-                                    ),
-                                    subtitle: r.note.isNotEmpty ? Text(r.note, style: const TextStyle(color: Colors.white38, fontSize: 10, fontStyle: FontStyle.italic)) : null,
-                                  );
-                                },
+                                    final r = dayRecords[i];
+                                    Uint8List? pBytes;
+                                    try {
+                                      final player = Provider.of<BallProvider>(context, listen: false).players.firstWhere(
+                                        (pl) => (pl.id != null && pl.id == r.playerId) || pl.name.toLowerCase() == r.playerName.toLowerCase(),
+                                      );
+                                      if (player.photoUrl.isNotEmpty) {
+                                        pBytes = base64Decode(player.photoUrl);
+                                      }
+                                    } catch (_) {}
+
+                                    return ListTile(
+                                      dense: true,
+                                      leading: CircleAvatar(
+                                        radius: 14,
+                                        backgroundColor: Colors.white10,
+                                        backgroundImage: pBytes != null ? MemoryImage(pBytes) : null,
+                                        child: pBytes == null ? Text(r.playerName[0].toUpperCase(), style: GoogleFonts.bebasNeue(color: Colors.orange, fontSize: 12)) : null,
+                                      ),
+                                      title: Row(
+                                        children: [
+                                          Text(r.playerName.toUpperCase(), style: GoogleFonts.poppins(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                          const Spacer(),
+                                          Text('${r.lostCount > 0 ? "+" : ""}${r.lostCount}', style: GoogleFonts.bebasNeue(color: r.lostCount >= 0 ? Colors.redAccent : Colors.greenAccent, fontSize: 16)),
+                                        ],
+                                      ),
+                                      subtitle: r.note.isNotEmpty ? Text(r.note, style: const TextStyle(color: Colors.white38, fontSize: 10, fontStyle: FontStyle.italic)) : null,
+                                    );
+                                  },
                               ),
                             ],
                           ),

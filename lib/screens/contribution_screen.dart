@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -499,7 +500,7 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
                   child: TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildUnifiedSummary(provider, fineProvider),
+                      _buildUnifiedSummary(provider, fineProvider, ballProvider),
                       _buildUnifiedDetailedCalendar(provider, fineProvider, ballProvider),
                       _buildOtherContributionsTab(provider, ballProvider),
                       if (isAdmin) _buildManageTab(provider),
@@ -539,7 +540,7 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
                       color: isSel ? Colors.tealAccent : Colors.white.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(m, style: GoogleFonts.bebasNeue(color: isSel ? Colors.white : Colors.white38, fontSize: 14)),
+                    child: Text(m, style: GoogleFonts.bebasNeue(color: isSel ? const Color(0xFF020C3B) : Colors.white38, fontSize: 14)),
                   ),
                 );
               }).toList(),
@@ -627,16 +628,176 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
     return combined;
   }
 
-  Widget _buildUnifiedSummary(ContributionProvider p, FineProvider fp) {
+  Widget _buildUnifiedSummary(ContributionProvider p, FineProvider fp, BallProvider bp) {
     final data = _getUnifiedSummary(p, fp);
+    final playersList = bp.players;
 
     if (data.isEmpty) return const Center(child: Text('No records found for this period', style: TextStyle(color: Colors.white24)));
+
+    Widget? overallPlayerCard;
+    if (_selectedMonthYear == 'Overall') {
+      Map<String, double> playerGrandTotals = {};
+      Map<String, Map<String, double>> playerMonthlyBreakdown = {};
+
+      for (var monthEntry in data.entries) {
+        String monthKey = monthEntry.key;
+        for (var pEntry in monthEntry.value.entries) {
+          String pName = pEntry.key;
+          double amt = pEntry.value;
+
+          playerGrandTotals[pName] = (playerGrandTotals[pName] ?? 0) + amt;
+          playerMonthlyBreakdown.putIfAbsent(pName, () => {});
+          playerMonthlyBreakdown[pName]![monthKey] = (playerMonthlyBreakdown[pName]![monthKey] ?? 0) + amt;
+        }
+      }
+
+      final sortedPlayerNames = playerGrandTotals.keys.toList()
+        ..sort((a, b) => playerGrandTotals[b]!.compareTo(playerGrandTotals[a]!));
+
+      final double grandTotalSum = playerGrandTotals.values.fold(0, (s, v) => s + v);
+
+      overallPlayerCard = Container(
+        margin: const EdgeInsets.only(bottom: 24),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0C1A54), Color(0xFF040B2E)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.tealAccent.withOpacity(0.3), width: 1.2),
+          boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 12, offset: const Offset(0, 5))],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.04),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.stars_rounded, color: Colors.tealAccent, size: 18),
+                          const SizedBox(width: 6),
+                          Text('OVERALL PLAYER MONEY SUMMARY', style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 20, letterSpacing: 1)),
+                        ],
+                      ),
+                      Text('CUMULATIVE CONTRIBUTIONS & FINES', style: GoogleFonts.poppins(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(color: const Color(0xFF00E676).withOpacity(0.15), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF00E676).withOpacity(0.3))),
+                    child: Text('${grandTotalSum.toStringAsFixed(0)} ৳', style: GoogleFonts.bebasNeue(color: const Color(0xFF00E676), fontSize: 22, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: sortedPlayerNames.map((pName) {
+                  final double pTotal = playerGrandTotals[pName]!;
+                  final Map<String, double> mBreakdown = playerMonthlyBreakdown[pName] ?? {};
+
+                  Uint8List? pBytes;
+                  try {
+                    final pl = playersList.firstWhere((pl) => pl.name.toLowerCase() == pName.toLowerCase());
+                    if (pl.photoUrl.isNotEmpty) {
+                      pBytes = base64Decode(pl.photoUrl);
+                    }
+                  } catch (_) {}
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.03),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: Colors.white10,
+                              backgroundImage: pBytes != null ? MemoryImage(pBytes) : null,
+                              child: pBytes == null
+                                  ? Text(pName[0].toUpperCase(), style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 16))
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                StringUtils.capitalize(pName),
+                                style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF00E676).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFF00E676).withOpacity(0.2)),
+                              ),
+                              child: Text('${pTotal.toStringAsFixed(0)} ৳', style: GoogleFonts.bebasNeue(color: const Color(0xFF00E676), fontSize: 18, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        if (mBreakdown.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          const Divider(color: Colors.white10, height: 1),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: mBreakdown.entries.map((b) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.white10),
+                                ),
+                                child: Text(
+                                  '${b.key}: ${b.value.toStringAsFixed(0)}৳',
+                                  style: GoogleFonts.poppins(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w500),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: data.length,
+      itemCount: data.length + (overallPlayerCard != null ? 1 : 0),
       itemBuilder: (ctx, i) {
-        String monthKey = data.keys.elementAt(i);
+        if (overallPlayerCard != null && i == 0) {
+          return overallPlayerCard;
+        }
+
+        int dataIndex = overallPlayerCard != null ? i - 1 : i;
+        String monthKey = data.keys.elementAt(dataIndex);
         Map<String, double> players = data[monthKey]!;
         double total = players.values.fold(0, (s, v) => s + v);
         
@@ -674,8 +835,8 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                      decoration: BoxDecoration(color: Color(0xFF00E676).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                      child: Text('${total.toStringAsFixed(0)} ৳', style: GoogleFonts.bebasNeue(color: Color(0xFF00E676), fontSize: 24)),
+                      decoration: BoxDecoration(color: const Color(0xFF00E676).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Text('${total.toStringAsFixed(0)} ৳', style: GoogleFonts.bebasNeue(color: const Color(0xFF00E676), fontSize: 24)),
                     ),
                   ],
                 ),
@@ -691,23 +852,38 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
                     if (contribs.isNotEmpty) status += "Contrib: ${contribs.length} ";
                     if (fines.isNotEmpty) status += "Fine: ${fines.length}";
 
+                    Uint8List? pBytes;
+                    try {
+                      final pl = playersList.firstWhere((pl) => pl.name.toLowerCase() == e.key.toLowerCase());
+                      if (pl.photoUrl.isNotEmpty) {
+                        pBytes = base64Decode(pl.photoUrl);
+                      }
+                    } catch (_) {}
+
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
                             child: Row(
                               children: [
-                                Container(width: 4, height: 25, decoration: BoxDecoration(color: Colors.tealAccent.withOpacity(0.5), borderRadius: BorderRadius.circular(2))),
-                                const SizedBox(width: 12),
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: Colors.white10,
+                                  backgroundImage: pBytes != null ? MemoryImage(pBytes) : null,
+                                  child: pBytes == null
+                                      ? Text(e.key[0].toUpperCase(), style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 14))
+                                      : null,
+                                ),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(StringUtils.capitalize(e.key), style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                                      if (!Provider.of<AuthProvider>(context, listen: false).isGuest)
-                                        Text(status, style: const TextStyle(color: Colors.white24, fontSize: 10)),
+                                      if (!Provider.of<AuthProvider>(context, listen: false).isGuest && status.isNotEmpty)
+                                        Text(status, style: const TextStyle(color: Colors.white38, fontSize: 10)),
                                     ],
                                   ),
                                 ),

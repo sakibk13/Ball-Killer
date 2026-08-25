@@ -47,24 +47,24 @@ class _PlayerStatusScreenState extends State<PlayerStatusScreen> {
 
     final players = ballProv.players;
     final List<Map<String, dynamic>> enriched = players.map((p) {
-      final String playerId = p.id!;
+      final String playerId = p.id ?? '';
 
       // 1. Calculate Lifetime Balls
-      final int lifetimeBalls = ballProv.allRecords
-          .where((r) => r.playerId == playerId)
+      final int recordSum = ballProv.allRecords
+          .where((r) => (r.playerId.isNotEmpty && r.playerId == playerId) || r.playerName.toLowerCase() == p.name.toLowerCase())
           .fold(0, (sum, r) => sum + r.lostCount);
+
+      final int lifetimeBalls = (recordSum > p.totalLost) ? recordSum : p.totalLost;
       
       final double totalFineOverall = lifetimeBalls * 50.0;
 
       // 2. Calculate Lifetime Payments (Deductible cash only)
-      // Direct Fine Payments
       final double totalPaidDirectLifetime = fineProv.payments
-          .where((pay) => pay.playerId == playerId)
+          .where((pay) => (pay.playerId.isNotEmpty && pay.playerId == playerId) || pay.playerName.toLowerCase() == p.name.toLowerCase())
           .fold(0.0, (sum, pay) => sum + pay.amountPaid);
 
-      // Cash Contributions (Deductible)
       final double totalFineSpecificContribLifetime = contProv.contributions
-          .where((c) => c.playerId == playerId && !c.isOther)
+          .where((c) => (((c.playerId != null && c.playerId!.isNotEmpty) && c.playerId == playerId) || c.name.toLowerCase() == p.name.toLowerCase()) && !c.isOther)
           .fold(0.0, (sum, c) => sum + c.taka);
       
       final double totalPaidDeductible = totalPaidDirectLifetime + totalFineSpecificContribLifetime;

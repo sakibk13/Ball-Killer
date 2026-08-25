@@ -76,11 +76,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             onPressed: () async {
               try {
                 final ballProvider = Provider.of<BallProvider>(context, listen: false);
-                final displayData = ballProvider.getMonthlyLeaderboard(_selectedMonthYear);
-                if (displayData.isNotEmpty) {
+                final playersWithTotals = ballProvider.getPlayersWithTotals(monthYear: _selectedMonthYear);
+
+                Set<String> monthsWithData = {};
+                for (var r in ballProvider.allRecords) {
+                  if (r.monthYear.isNotEmpty) {
+                    monthsWithData.add(DateUtilsHelper.normalizeMonthYear(r.monthYear));
+                  }
+                }
+                monthsWithData.add(DateFormat('MMMM yyyy').format(DateTime.now()));
+
+                Map<String, List<Map<String, dynamic>>> monthlyBreakdown = {};
+                for (var m in monthsWithData) {
+                  monthlyBreakdown[m] = ballProvider.getPlayersWithTotals(monthYear: m);
+                }
+
+                if (playersWithTotals.isNotEmpty) {
                   await ExportService.exportLeaderboard(
                     monthYear: _selectedMonthYear,
-                    players: displayData,
+                    players: playersWithTotals,
+                    monthlyBreakdown: monthlyBreakdown,
                   );
                   if (mounted) {
                     StatusDialog.show(context, title: "SUCCESS", message: "Leaderboard PDF Generated!", isSuccess: true);
@@ -102,7 +117,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
+          constraints: const BoxConstraints(maxWidth: 1000),
           child: Column(
             children: [
               Container(
@@ -166,63 +181,86 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                           sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
-                                final item = displayData[index];
-                                final isTop = index < 3;
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  decoration: BoxDecoration(
-                                    color: isTop ? Colors.cyanAccent.withOpacity(0.05) : const Color(0xFF020C3B),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isTop ? Colors.cyanAccent.withOpacity(0.3) : Colors.white10,
-                                    ),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                    child: Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 25,
-                                          child: Text('${index + 1}', style: GoogleFonts.bebasNeue(color: isTop ? Colors.cyanAccent : Colors.white24, fontSize: 16)),
-                                        ),
-                                        CircleAvatar(
-                                          radius: 18,
-                                          backgroundColor: Colors.white10,
-                                          backgroundImage: item['photoUrl'] != null && item['photoUrl'].isNotEmpty
-                                              ? MemoryImage(base64Decode(item['photoUrl']))
-                                              : null,
-                                          child: (item['photoUrl'] == null || item['photoUrl'].isEmpty)
-                                              ? Text(item['name'][0].toUpperCase(), style: const TextStyle(color: Colors.cyanAccent, fontSize: 12))
-                                              : null,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            StringUtils.capitalize(item['name']),
-                                            style: GoogleFonts.poppins(color: Colors.white, fontWeight: isTop ? FontWeight.bold : FontWeight.normal, fontSize: 13),
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: isTop ? Colors.cyanAccent.withOpacity(0.1) : Colors.white.withOpacity(0.02),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: isTop ? Colors.cyanAccent.withOpacity(0.3) : Colors.white10),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text('${item['total']}', style: GoogleFonts.bebasNeue(color: isTop ? Colors.cyanAccent : Colors.white70, fontSize: 18)),
-                                              const SizedBox(width: 4),
-                                              Icon(Icons.auto_delete, color: isTop ? Colors.cyanAccent : Colors.white24, size: 12),
-                                            ],
-                                          ),
-                                        ),
+                                  final item = displayData[index];
+                                  final isRank1 = index == 0;
+                                  final isRank2 = index == 1;
+                                  final isRank3 = index == 2;
+                                  final isTop = index < 3;
+
+                                  Color rankColor = isRank1 
+                                      ? const Color(0xFFFFD700) 
+                                      : (isRank2 ? const Color(0xFFC0C0C0) : (isRank3 ? const Color(0xFFCD7F32) : Colors.white24));
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF020C3B),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isTop ? rankColor.withOpacity(0.4) : Colors.white.withOpacity(0.06),
+                                        width: isTop ? 1.2 : 1,
+                                      ),
+                                      boxShadow: [
+                                        if (isTop) BoxShadow(color: rankColor.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 3)),
                                       ],
                                     ),
-                                  ),
-                                );
-                              },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 30, height: 30,
+                                            decoration: BoxDecoration(
+                                              color: isTop ? rankColor.withOpacity(0.15) : Colors.white.withOpacity(0.04),
+                                              shape: BoxShape.circle,
+                                              border: Border.all(color: isTop ? rankColor.withOpacity(0.5) : Colors.transparent),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Text('${index + 1}', style: GoogleFonts.bebasNeue(color: isTop ? rankColor : Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          CircleAvatar(
+                                            radius: 20,
+                                            backgroundColor: Colors.white10,
+                                            backgroundImage: item['photoUrl'] != null && item['photoUrl'].isNotEmpty
+                                                ? MemoryImage(base64Decode(item['photoUrl']))
+                                                : null,
+                                            child: (item['photoUrl'] == null || item['photoUrl'].isEmpty)
+                                                ? Text(item['name'][0].toUpperCase(), style: TextStyle(color: isTop ? rankColor : Colors.tealAccent, fontSize: 13, fontWeight: FontWeight.bold))
+                                                : null,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              StringUtils.capitalize(item['name']),
+                                              style: GoogleFonts.poppins(
+                                                color: Colors.white, 
+                                                fontWeight: FontWeight.bold, 
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: isTop ? rankColor.withOpacity(0.15) : Colors.white.withOpacity(0.03),
+                                              borderRadius: BorderRadius.circular(14),
+                                              border: Border.all(color: isTop ? rankColor.withOpacity(0.4) : Colors.white10),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text('${item['total']}', style: GoogleFonts.bebasNeue(color: isTop ? rankColor : Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                                                const SizedBox(width: 4),
+                                                Icon(Icons.sports_cricket_rounded, color: isTop ? rankColor : Colors.white38, size: 14),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               childCount: displayData.length,
                             ),
                           ),
@@ -242,14 +280,17 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   Widget _buildTopHighlight(Map<String, dynamic> topPlayer) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 25),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       decoration: BoxDecoration(
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(50)),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
         gradient: const LinearGradient(
           colors: [Color(0xFF001F3F), Color(0xFF051970)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
+        boxShadow: [
+          BoxShadow(color: Colors.amber.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 5)),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -261,51 +302,50 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(colors: [Colors.cyanAccent, Colors.blueAccent]),
-                  boxShadow: [BoxShadow(color: Colors.cyanAccent.withOpacity(0.3), blurRadius: 10)],
+                  gradient: const LinearGradient(colors: [Colors.amber, Colors.orangeAccent]),
+                  boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.4), blurRadius: 12)],
                 ),
                 child: CircleAvatar(
-                  radius: 40,
+                  radius: 36,
                   backgroundColor: const Color(0xFF020C3B),
                   backgroundImage: topPlayer['photoUrl'] != null && topPlayer['photoUrl'].isNotEmpty
                       ? MemoryImage(base64Decode(topPlayer['photoUrl']))
                       : null,
                   child: (topPlayer['photoUrl'] == null || topPlayer['photoUrl'].isEmpty)
-                      ? Text(topPlayer['name'][0].toUpperCase(), style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 36))
+                      ? Text(topPlayer['name'][0].toUpperCase(), style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 32))
                       : null,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(5),
                 decoration: const BoxDecoration(
-                  color: Color(0xFF001F3F), 
+                  color: Colors.amber, 
                   shape: BoxShape.circle, 
-                  border: Border.fromBorderSide(BorderSide(color: Colors.cyanAccent, width: 1.5)),
                 ),
-                child: const Icon(Icons.emoji_events_rounded, color: Colors.cyanAccent, size: 16),
+                child: const Icon(Icons.emoji_events_rounded, color: Color(0xFF051970), size: 14),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             StringUtils.capitalize(topPlayer['name']), 
             textAlign: TextAlign.center,
-            style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 28, letterSpacing: 1.2)
+            style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.cyanAccent.withOpacity(0.1), 
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.cyanAccent.withOpacity(0.2)),
+              color: Colors.amber.withOpacity(0.15), 
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.amber.withOpacity(0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.auto_awesome, color: Colors.cyanAccent, size: 12),
-                const SizedBox(width: 6),
-                Text('CHAMPION OF THE MONTH', style: GoogleFonts.bebasNeue(color: Colors.cyanAccent, fontSize: 12, letterSpacing: 1.5)),
+                const Icon(Icons.star_rounded, color: Colors.amberAccent, size: 13),
+                const SizedBox(width: 5),
+                Text('RANK #1 LEADER', style: GoogleFonts.bebasNeue(color: Colors.amberAccent, fontSize: 12, letterSpacing: 1.2)),
               ],
             ),
           ),

@@ -66,40 +66,74 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                       itemBuilder: (context, i) {
                         final user = _pendingUsers[i];
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 15),
-                          padding: const EdgeInsets.all(15),
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0C1640), Color(0xFF040A26)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white10),
+                            border: Border.all(color: Colors.orangeAccent.withOpacity(0.2), width: 1),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 4)),
+                            ],
                           ),
                           child: Row(
                             children: [
-                              CircleAvatar(
-                                radius: 25,
-                                backgroundColor: Colors.white10,
-                                backgroundImage: user.photoUrl.isNotEmpty ? MemoryImage(base64Decode(user.photoUrl)) : null,
-                                child: user.photoUrl.isEmpty ? Text(user.name[0], style: const TextStyle(color: Colors.orange)) : null,
+                              Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.orangeAccent.withOpacity(0.4), width: 1.5),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 22,
+                                  backgroundColor: Colors.white10,
+                                  backgroundImage: user.photoUrl.isNotEmpty ? MemoryImage(base64Decode(user.photoUrl)) : null,
+                                  child: user.photoUrl.isEmpty ? Text(user.name[0].toUpperCase(), style: GoogleFonts.bebasNeue(color: Colors.orangeAccent, fontSize: 20)) : null,
+                                ),
                               ),
-                              const SizedBox(width: 15),
+                              const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(user.name, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                                    Text(user.phone, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                                    Text(user.name, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                                    const SizedBox(height: 2),
+                                    Text(user.phone, style: GoogleFonts.poppins(color: Colors.white38, fontSize: 11)),
                                   ],
                                 ),
                               ),
                               Row(
                                 children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.check_circle_outline, color: Colors.greenAccent),
-                                    onPressed: () => _handleApproval(user, 'approved'),
+                                  InkWell(
+                                    onTap: () => _handleApproval(user, 'approved'),
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.greenAccent.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.greenAccent.withOpacity(0.3), width: 0.8),
+                                      ),
+                                      child: const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 22),
+                                    ),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
-                                    onPressed: () => _handleApproval(user, 'rejected'),
+                                  const SizedBox(width: 10),
+                                  InkWell(
+                                    onTap: () => _handleApproval(user, 'rejected'),
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.redAccent.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.redAccent.withOpacity(0.3), width: 0.8),
+                                      ),
+                                      child: const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 22),
+                                    ),
                                   ),
                                 ],
                               ),

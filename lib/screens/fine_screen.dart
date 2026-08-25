@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -218,7 +217,7 @@ class _FineScreenState extends State<FineScreen> {
                           ],
                         ),
                       ),
-                      _buildGivenHistoryTab(fineProvider, contributionProvider),
+                      _buildGivenHistoryTab(fineProvider, contributionProvider, ballProvider),
                     ],
                   ),
                 ),
@@ -282,113 +281,101 @@ class _FineScreenState extends State<FineScreen> {
     
     return Container(
       width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(35),
+        borderRadius: BorderRadius.circular(22),
         gradient: const LinearGradient(
-          colors: [Color(0xFF001F3F), Color(0xFF051970)],
+          colors: [Color(0xFF0C1A54), Color(0xFF030B2E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
-          BoxShadow(color: Colors.tealAccent.withOpacity(0.05), blurRadius: 40, spreadRadius: -10),
+          BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 15, offset: const Offset(0, 6)),
+          BoxShadow(color: Colors.amber.withOpacity(0.08), blurRadius: 25, spreadRadius: -5),
         ],
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.amber.withOpacity(0.3), width: 1.2),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(25),
-            child: Row(
-              children: [
-                Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(colors: [Colors.cyanAccent, Colors.blueAccent]),
-                      ),
-                      child: CircleAvatar(
-                        radius: 45,
-                        backgroundColor: const Color(0xFF020C3B),
-                        backgroundImage: player['photoUrl'] != null && player['photoUrl'].isNotEmpty 
-                            ? MemoryImage(base64Decode(player['photoUrl'])) 
-                            : null,
-                        child: player['photoUrl'] == null || player['photoUrl'].isEmpty 
-                            ? Text(player['name'][0], style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 40)) 
-                            : null,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
-                      child: const Icon(Icons.star_rounded, color: Colors.white, size: 20),
-                    ),
-                  ],
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(colors: [Colors.amber, Colors.orangeAccent]),
                 ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('TOP CONTRIBUTOR', style: GoogleFonts.bebasNeue(color: Colors.orange, fontSize: 14, letterSpacing: 2)),
-                      Text(
-                        StringUtils.capitalize(player['name']), 
-                        style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 32, letterSpacing: 1.5, height: 1.1)
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          const Icon(Icons.phone_android_rounded, color: Colors.white24, size: 12),
-                          const SizedBox(width: 5),
-                          Text(player['phone'] ?? 'N/A', style: GoogleFonts.poppins(color: Colors.white24, fontSize: 11)),
-                        ],
-                      ),
-                    ],
+                child: CircleAvatar(
+                  radius: 26,
+                  backgroundColor: const Color(0xFF020C3B),
+                  backgroundImage: player['photoUrl'] != null && player['photoUrl'].isNotEmpty 
+                      ? MemoryImage(base64Decode(player['photoUrl'])) 
+                      : null,
+                  child: player['photoUrl'] == null || player['photoUrl'].isEmpty 
+                      ? Text(player['name'][0].toUpperCase(), style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 24)) 
+                      : null,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: const BoxDecoration(color: Colors.amber, shape: BoxShape.circle),
+                child: const Icon(Icons.emoji_events_rounded, color: Color(0xFF051970), size: 11),
+              ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.amber.withOpacity(0.3), width: 0.8),
                   ),
+                  child: Text('TOP CONTRIBUTOR', style: GoogleFonts.bebasNeue(color: Colors.amberAccent, fontSize: 10, letterSpacing: 1.2)),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  StringUtils.capitalize(player['name']), 
+                  style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text('BALLS: $lifetimeBalls', style: GoogleFonts.bebasNeue(color: Colors.white60, fontSize: 11, letterSpacing: 0.8)),
+                    const SizedBox(width: 10),
+                    Text('GIVEN: ${totalGiven.toInt()} ৳', style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 11, letterSpacing: 0.8)),
+                  ],
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(35)),
+              color: due > 0 ? Colors.redAccent.withOpacity(0.15) : Colors.greenAccent.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: due > 0 ? Colors.redAccent.withOpacity(0.4) : Colors.greenAccent.withOpacity(0.4)),
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildSummaryItem('LIFETIME BALLS', '$lifetimeBalls', Colors.white70),
-                    _buildSummaryItem('GIVEN (CASH)', '${totalGiven.toInt()} ৳', Colors.tealAccent),
-                  ],
-                ),
-                const SizedBox(height: 25),
-                const Divider(color: Colors.white10),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('OUTSTANDING DUE', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 12, letterSpacing: 1)),
-                        Text('${due.toInt()} ৳', style: GoogleFonts.bebasNeue(color: due > 0 ? Colors.redAccent : Colors.greenAccent, fontSize: 36)),
-                      ],
-                    ),
-                    if (credit > 0)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text('SURPLUS CREDIT', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 12, letterSpacing: 1)),
-                          Text('${credit.toInt()} ৳', style: GoogleFonts.bebasNeue(color: Colors.cyanAccent, fontSize: 24)),
-                        ],
-                      ),
-                  ],
+                Text(due > 0 ? 'DUE AMOUNT' : (credit > 0 ? 'SURPLUS' : 'STATUS'), style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 10, letterSpacing: 1)),
+                Text(
+                  due > 0 ? '${due.toInt()} ৳' : (credit > 0 ? '${credit.toInt()} ৳' : 'CLEAR'), 
+                  style: GoogleFonts.bebasNeue(
+                    color: Colors.white, 
+                    fontSize: 18, 
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -434,7 +421,14 @@ class _FineScreenState extends State<FineScreen> {
         final monthlyDue = p['monthlyDue'] as double;
         final lifetimeDue = p['due'] as double;
         final credit = p['surplus'] as double;
+        final isRank1 = i == 0;
+        final isRank2 = i == 1;
+        final isRank3 = i == 2;
         final isTop = i < 3;
+
+        Color rankColor = isRank1 
+            ? const Color(0xFFFFD700) 
+            : (isRank2 ? const Color(0xFFC0C0C0) : (isRank3 ? const Color(0xFFCD7F32) : Colors.white24));
 
         Uint8List? pBytes;
         if (p['photoUrl'] != null && p['photoUrl'] != '') {
@@ -442,58 +436,65 @@ class _FineScreenState extends State<FineScreen> {
         }
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
             color: const Color(0xFF020C3B),
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: isTop ? Colors.tealAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05)),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isTop ? rankColor.withOpacity(0.4) : Colors.white.withOpacity(0.06),
+              width: isTop ? 1.2 : 1,
+            ),
             boxShadow: [
-              if (isTop) BoxShadow(color: Colors.tealAccent.withOpacity(0.05), blurRadius: 10),
+              if (isTop) BoxShadow(color: rankColor.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 3)),
             ],
           ),
           child: ExpansionTile(
             shape: const RoundedRectangleBorder(side: BorderSide.none),
             collapsedShape: const RoundedRectangleBorder(side: BorderSide.none),
-            tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             leading: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 28, height: 28,
+                  width: 30, height: 30,
                   decoration: BoxDecoration(
-                    color: isTop ? Colors.orange.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                    color: isTop ? rankColor.withOpacity(0.15) : Colors.white.withOpacity(0.04),
                     shape: BoxShape.circle,
+                    border: Border.all(color: isTop ? rankColor.withOpacity(0.5) : Colors.transparent),
                   ),
                   alignment: Alignment.center,
-                  child: Text('${i + 1}', style: GoogleFonts.bebasNeue(color: isTop ? Colors.orange : Colors.white24, fontSize: 16)),
+                  child: Text('${i + 1}', style: GoogleFonts.bebasNeue(color: isTop ? rankColor : Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 10),
                 CircleAvatar(
                   radius: 18,
                   backgroundColor: Colors.white10,
                   backgroundImage: pBytes != null ? MemoryImage(pBytes) : null,
-                  child: pBytes == null ? Text(p['name'][0], style: const TextStyle(color: Colors.tealAccent, fontSize: 12)) : null,
+                  child: pBytes == null ? Text(p['name'][0].toUpperCase(), style: const TextStyle(color: Colors.tealAccent, fontSize: 13, fontWeight: FontWeight.bold)) : null,
                 ),
               ],
             ),
             title: Text(
               StringUtils.capitalize(p['name']), 
-              style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
             ),
-            subtitle: Row(
+            subtitle: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text('$monthlyTotal BALLS', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 11, letterSpacing: 0.5)),
-                const SizedBox(width: 8),
+                _buildMiniTag('FINE: ${((p['totalFine'] ?? (monthlyTotal * 50.0)) as num).toInt()}৳', Colors.amberAccent),
                 if (lifetimeDue > 0)
                   _buildMiniTag('DUE: ${lifetimeDue.toInt()}৳', Colors.redAccent)
                 else if (credit > 0)
                   _buildMiniTag('CREDIT: ${credit.toInt()}৳', Colors.greenAccent)
                 else
                   _buildMiniTag('CLEARED', Colors.greenAccent),
+                Text('$monthlyTotal BALLS', style: GoogleFonts.bebasNeue(color: Colors.white60, fontSize: 12, letterSpacing: 0.5)),
               ],
             ),
             trailing: IconButton(
-              icon: Icon(Icons.send_to_mobile_rounded, color: Colors.greenAccent.withOpacity(0.7), size: 20),
+              icon: Icon(Icons.send_to_mobile_rounded, color: Colors.greenAccent.withOpacity(0.8), size: 20),
               onPressed: () => _sendWhatsAppReminder(p),
             ),
             children: [
@@ -565,7 +566,8 @@ class _FineScreenState extends State<FineScreen> {
     );
   }
 
-  Widget _buildGivenHistoryTab(FineProvider fineProvider, ContributionProvider contributionProvider) {
+  Widget _buildGivenHistoryTab(FineProvider fineProvider, ContributionProvider contributionProvider, BallProvider ballProvider) {
+    final players = ballProvider.players;
     final directPayments = fineProvider.getPaymentsForMonth(_selectedMonthYear);
     final contribFines = contributionProvider.contributions
         .where((c) => (_selectedMonthYear == 'Overall' || c.monthYear == _selectedMonthYear) && c.isFinePayment)
@@ -635,12 +637,23 @@ class _FineScreenState extends State<FineScreen> {
                   children: items.map((p) {
                     bool isDirect = p is FinePayment;
                     String name = isDirect ? p.playerName : p.name;
+                    String pId = isDirect ? p.playerId : p.playerId;
                     String note = isDirect ? (p.note ?? "Fine Payment") : "(Via Contrib) ${p.ballTape}";
                     double amount = isDirect ? p.amountPaid : p.taka;
 
+                    Uint8List? pBytes;
+                    try {
+                      final player = players.firstWhere(
+                        (pl) => (pl.id != null && pl.id == pId) || pl.name.toLowerCase() == name.toLowerCase(),
+                      );
+                      if (player.photoUrl.isNotEmpty) {
+                        pBytes = base64Decode(player.photoUrl);
+                      }
+                    } catch (_) {}
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.04),
                         borderRadius: BorderRadius.circular(20),
@@ -648,11 +661,18 @@ class _FineScreenState extends State<FineScreen> {
                       ),
                       child: Row(
                         children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.white10,
+                            backgroundImage: pBytes != null ? MemoryImage(pBytes) : null,
+                            child: pBytes == null ? Text(name[0].toUpperCase(), style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 16)) : null,
+                          ),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(name[0].toUpperCase() + name.substring(1).toLowerCase(), style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                Text(StringUtils.capitalize(name), style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                                 const SizedBox(height: 2),
                                 Text(note, style: const TextStyle(color: Colors.white38, fontSize: 10)),
                               ],
@@ -660,11 +680,11 @@ class _FineScreenState extends State<FineScreen> {
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(color: Color(0xFF00E676).withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: Color(0xFF00E676).withOpacity(0.2))),
-                            child: Text('${amount.toInt()} ৳', style: GoogleFonts.bebasNeue(color: Color(0xFF00E676), fontSize: 18)),
+                            decoration: BoxDecoration(color: const Color(0xFF00E676).withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF00E676).withOpacity(0.2))),
+                            child: Text('${amount.toInt()} ৳', style: GoogleFonts.bebasNeue(color: const Color(0xFF00E676), fontSize: 18)),
                           ),
                           if (Provider.of<AuthProvider>(context, listen: false).isAdmin) ...[
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 10),
                             GestureDetector(
                               onTap: () {
                                 if (isDirect) {
@@ -748,16 +768,36 @@ class _FineScreenState extends State<FineScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF020C3B),
-        title: Text('DELETE RECORD', style: GoogleFonts.bebasNeue(color: Colors.white)),
-        content: Text('Remove this record of ${payment.amountPaid.toInt()}?', style: GoogleFonts.poppins(color: Colors.white70)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.redAccent, width: 1.5)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+            const SizedBox(width: 10),
+            Text('DELETE PAYMENT RECORD?', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 20, letterSpacing: 1)),
+          ],
+        ),
+        content: Text('Are you sure you want to remove this fine payment record of ${payment.amountPaid.toInt()}৳ for ${payment.playerName}?', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('CANCEL', style: GoogleFonts.poppins())),
           TextButton(
-            onPressed: () {
-              provider.deletePayment(payment.id!);
+            onPressed: () => Navigator.pop(context), 
+            child: Text('CANCEL', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 16)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            onPressed: () async {
               Navigator.pop(context);
+              try {
+                await provider.deletePayment(payment.id!);
+                if (context.mounted) {
+                  StatusDialog.show(context, message: "Payment record deleted successfully.", isSuccess: true, title: "RECORD DELETED");
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  StatusDialog.show(context, message: "Failed to delete record: $e", isSuccess: false, title: "DELETE FAILED");
+                }
+              }
             },
-            child: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
+            child: Text('DELETE NOW', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 16)),
           ),
         ],
       ),

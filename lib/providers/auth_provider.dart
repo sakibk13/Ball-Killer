@@ -10,8 +10,15 @@ class AuthProvider with ChangeNotifier {
 
   User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
-  bool get isAdmin => _currentUser?.phone == AppConfig.adminPhone;
+  bool get isSuperAdmin => _currentUser?.phone == '01832465446' || _currentUser?.phone == AppConfig.adminPhone;
+  bool get isAdmin => isSuperAdmin || (_currentUser != null && !_currentUser!.phone.startsWith('guest_user'));
   bool get isGuest => _currentUser?.phone == 'guest_user';
+
+  bool isRoomAdminOf(String roomAdminPhone) {
+    if (_currentUser == null) return false;
+    if (isSuperAdmin) return true;
+    return _currentUser!.phone == roomAdminPhone;
+  }
 
   Future<void> loginAsGuest() async {
     _isLoading = true;

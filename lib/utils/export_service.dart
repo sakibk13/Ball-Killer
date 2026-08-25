@@ -1,9 +1,7 @@
-import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
@@ -24,9 +22,9 @@ class ExportService {
 
   // --- PUBLIC EXPORT METHODS ---
 
-  static Future<void> exportFundReport({required List<Fund> funds, required double grandTotal, required List<dynamic> players}) async {
+  static Future<void> exportFundReport({required List<Fund> funds, required double grandTotal, required List<dynamic> players, String monthYear = 'Overall'}) async {
     final pdf = pw.Document();
-    await addFundReport(pdf, funds: funds, grandTotal: grandTotal, players: players);
+    await addFundReport(pdf, funds: funds, grandTotal: grandTotal, players: players, monthYear: monthYear);
     await addPaymentInstructionPage(pdf);
     await sharePdf(await pdf.save(), 'club_fund_report.pdf');
   }
@@ -59,9 +57,13 @@ class ExportService {
     await sharePdf(await pdf.save(), 'other_contributions.pdf');
   }
 
-  static Future<void> exportLeaderboard({required String monthYear, required List<Map<String, dynamic>> players}) async {
+  static Future<void> exportLeaderboard({
+    required String monthYear,
+    required List<Map<String, dynamic>> players,
+    Map<String, List<Map<String, dynamic>>>? monthlyBreakdown,
+  }) async {
     final pdf = pw.Document();
-    await addLeaderboard(pdf, monthYear: monthYear, players: players);
+    await addLeaderboard(pdf, monthYear: monthYear, players: players, monthlyBreakdown: monthlyBreakdown);
     await addPaymentInstructionPage(pdf);
     await sharePdf(await pdf.save(), 'leaderboard.pdf');
   }
@@ -198,7 +200,7 @@ class ExportService {
     );
   }
 
-  static Future<void> addFundReport(pw.Document pdf, {required List<Fund> funds, required double grandTotal, required List<dynamic> players}) async {
+  static Future<void> addFundReport(pw.Document pdf, {required List<Fund> funds, required double grandTotal, required List<dynamic> players, String monthYear = 'Overall'}) async {
     if (funds.isEmpty) return;
     pw.MemoryImage? logoImage;
     try {
@@ -225,7 +227,7 @@ class ExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(30),
-        header: (context) => _buildPdfHeader('Official Fund Report', 'Income & Expense Breakdown', logoImage),
+        header: (context) => _buildPdfHeader('Official Fund Report', monthYear == 'Overall' ? 'Full Income & Expense History' : 'Financial Statement: $monthYear', logoImage),
         footer: (context) => _buildPdfFooter('Club Fund Document', context.pageNumber),
         build: (pw.Context context) {
           List<pw.Widget> content = [];
@@ -256,7 +258,7 @@ class ExportService {
             padding: const pw.EdgeInsets.all(12),
             decoration: pw.BoxDecoration(color: PdfColor.fromHex('#E3F2FD'), borderRadius: pw.BorderRadius.circular(8), border: pw.Border.all(color: primaryColor, width: 0.5)),
             child: pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-              pw.Text('GRAND TOTAL CLUB BALANCE', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+              pw.Text(monthYear == 'Overall' ? 'GRAND TOTAL CLUB BALANCE' : 'MONTH ENDING BALANCE', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: primaryColor)),
               pw.Text('${grandTotal.toInt()} BDT', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: primaryColor)),
             ])
           ));
@@ -473,7 +475,12 @@ class ExportService {
     );
   }
 
-  static Future<void> addLeaderboard(pw.Document pdf, {required String monthYear, required List<Map<String, dynamic>> players}) async {
+  static Future<void> addLeaderboard(
+    pw.Document pdf, {
+    required String monthYear,
+    required List<Map<String, dynamic>> players,
+    Map<String, List<Map<String, dynamic>>>? monthlyBreakdown,
+  }) async {
     if (players.isEmpty) return;
     pw.MemoryImage? logoImage;
     try {
@@ -481,41 +488,225 @@ class ExportService {
       logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
     } catch (e) {}
 
-    final sorted = List<Map<String, dynamic>>.from(players)..sort((a, b) => (b['total'] as num).compareTo(a['total'] as num));
+    final bool isOverall = monthYear == 'Overall';
+    final sorted = List<Map<String, dynamic>>.from(players)..sort((a, b) {
+      int cmp = (b['total'] as num).compareTo(a['total'] as num);
+      if (cmp != 0) return cmp;
+      int cmpOverall = ((b['totalOverall'] ?? b['total']) as num).compareTo((a['totalOverall'] ?? a['total']) as num);
+      if (cmpOverall != 0) return cmpOverall;
+      return (a['name'] as String).toLowerCase().compareTo((b['name'] as String).toLowerCase());
+    });
+
+    final int totalMonthly = sorted.fold<int>(0, (sum, p) => sum + ((p['total'] ?? 0) as num).toInt());
+    final int totalOverall = sorted.fold<int>(0, (sum, p) => sum + ((p['totalOverall'] ?? p['total'] ?? 0) as num).toInt());
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(30),
-        header: (context) => _buildPdfHeader('Club Leaderboard', 'Performance Rankings: $monthYear', logoImage),
+        header: (context) => _buildPdfHeader(
+          'Club Leaderboard',
+          isOverall ? 'Cumulative Performance & Overall Rankings' : 'Performance Rankings: $monthYear',
+          logoImage,
+        ),
         footer: (context) => _buildPdfFooter('Leaderboard Document', context.pageNumber),
         build: (pw.Context context) {
-          return [
+          List<pw.Widget> widgets = [];
+
+          // Main Table with Month-wise AND Overall Total Columns
+          widgets.add(
             _buildTable(
-              columnWidths: {0: const pw.FixedColumnWidth(40), 1: const pw.FixedColumnWidth(40), 2: const pw.FlexColumnWidth(), 3: const pw.FixedColumnWidth(80)},
+              columnWidths: isOverall
+                  ? {
+                      0: const pw.FixedColumnWidth(35),
+                      1: const pw.FixedColumnWidth(35),
+                      2: const pw.FlexColumnWidth(),
+                      3: const pw.FixedColumnWidth(110),
+                    }
+                  : {
+                      0: const pw.FixedColumnWidth(35),
+                      1: const pw.FixedColumnWidth(35),
+                      2: const pw.FlexColumnWidth(),
+                      3: const pw.FixedColumnWidth(95),
+                      4: const pw.FixedColumnWidth(95),
+                    },
               [
-                pw.TableRow(decoration: pw.BoxDecoration(color: primaryColor), children: [_buildHeaderCell('Rank', align: pw.TextAlign.center), _buildHeaderCell('PIC', align: pw.TextAlign.center), _buildHeaderCell('Player Name'), _buildHeaderCell('Balls Lost', align: pw.TextAlign.center)]),
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: primaryColor),
+                  children: isOverall
+                      ? [
+                          _buildHeaderCell('Rank', align: pw.TextAlign.center),
+                          _buildHeaderCell('PIC', align: pw.TextAlign.center),
+                          _buildHeaderCell('Player Name'),
+                          _buildHeaderCell('Total Balls Lost', align: pw.TextAlign.center),
+                        ]
+                      : [
+                          _buildHeaderCell('Rank', align: pw.TextAlign.center),
+                          _buildHeaderCell('PIC', align: pw.TextAlign.center),
+                          _buildHeaderCell('Player Name'),
+                          _buildHeaderCell('$monthYear Loss', align: pw.TextAlign.center),
+                          _buildHeaderCell('Overall Total', align: pw.TextAlign.center),
+                        ],
+                ),
                 ...sorted.asMap().entries.map((entry) {
                   final p = entry.value;
                   pw.MemoryImage? playerPhoto;
-                   try {
-                      if (p['photoUrl'] != null && p['photoUrl'] != '') playerPhoto = pw.MemoryImage(base64Decode(p['photoUrl']));
-                   } catch (err) {}
+                  try {
+                    if (p['photoUrl'] != null && p['photoUrl'] != '') {
+                      playerPhoto = pw.MemoryImage(base64Decode(p['photoUrl']));
+                    }
+                  } catch (err) {}
+
+                  final int monthCount = ((p['total'] ?? 0) as num).toInt();
+                  final int overallCount = ((p['totalOverall'] ?? p['total'] ?? 0) as num).toInt();
 
                   return pw.TableRow(
                     decoration: pw.BoxDecoration(color: entry.key % 2 == 0 ? PdfColors.white : bgLight),
-                    children: [
-                      _buildDataCell('${entry.key + 1}', align: pw.TextAlign.center, fontWeight: pw.FontWeight.bold),
-                      pw.Padding(padding: const pw.EdgeInsets.all(2), child: pw.Center(child: pw.Container(
-                        height: 12, width: 12, decoration: pw.BoxDecoration(shape: pw.BoxShape.circle, color: PdfColors.grey200, image: playerPhoto != null ? pw.DecorationImage(image: playerPhoto, fit: pw.BoxFit.cover) : null),
-                        child: playerPhoto == null ? pw.Center(child: pw.Text(p['name'][0].toUpperCase(), style: const pw.TextStyle(fontSize: 5))) : null,
-                      ))),
-                      _buildDataCell(StringUtils.capitalize(p['name']), fontWeight: pw.FontWeight.bold),
-                      _buildDataCell('${p['total']}', align: pw.TextAlign.center, color: entry.key < 3 ? PdfColor.fromHex('#C62828') : textDark, fontWeight: pw.FontWeight.bold),
-                    ]);
+                    children: isOverall
+                        ? [
+                            _buildDataCell('${entry.key + 1}', align: pw.TextAlign.center, fontWeight: pw.FontWeight.bold),
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(2),
+                              child: pw.Center(
+                                child: pw.Container(
+                                  height: 14,
+                                  width: 14,
+                                  decoration: pw.BoxDecoration(
+                                    shape: pw.BoxShape.circle,
+                                    color: PdfColors.grey200,
+                                    image: playerPhoto != null ? pw.DecorationImage(image: playerPhoto, fit: pw.BoxFit.cover) : null,
+                                  ),
+                                  child: playerPhoto == null ? pw.Center(child: pw.Text(p['name'][0].toUpperCase(), style: const pw.TextStyle(fontSize: 6))) : null,
+                                ),
+                              ),
+                            ),
+                            _buildDataCell(StringUtils.capitalize(p['name']), fontWeight: pw.FontWeight.bold),
+                            _buildDataCell('$overallCount', align: pw.TextAlign.center, color: entry.key < 3 ? PdfColor.fromHex('#C62828') : textDark, fontWeight: pw.FontWeight.bold),
+                          ]
+                        : [
+                            _buildDataCell('${entry.key + 1}', align: pw.TextAlign.center, fontWeight: pw.FontWeight.bold),
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.all(2),
+                              child: pw.Center(
+                                child: pw.Container(
+                                  height: 14,
+                                  width: 14,
+                                  decoration: pw.BoxDecoration(
+                                    shape: pw.BoxShape.circle,
+                                    color: PdfColors.grey200,
+                                    image: playerPhoto != null ? pw.DecorationImage(image: playerPhoto, fit: pw.BoxFit.cover) : null,
+                                  ),
+                                  child: playerPhoto == null ? pw.Center(child: pw.Text(p['name'][0].toUpperCase(), style: const pw.TextStyle(fontSize: 6))) : null,
+                                ),
+                              ),
+                            ),
+                            _buildDataCell(StringUtils.capitalize(p['name']), fontWeight: pw.FontWeight.bold),
+                            _buildDataCell('$monthCount', align: pw.TextAlign.center, color: monthCount > 0 ? PdfColor.fromHex('#C62828') : textDark, fontWeight: pw.FontWeight.bold),
+                            _buildDataCell('$overallCount', align: pw.TextAlign.center, color: primaryColor, fontWeight: pw.FontWeight.bold),
+                          ],
+                  );
                 }),
+                // Total Summary Row
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: PdfColor.fromHex('#E0F2F1')),
+                  children: isOverall
+                      ? [
+                          pw.SizedBox(),
+                          pw.SizedBox(),
+                          _buildDataCell('TOTAL BALLS LOST', fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#00796B')),
+                          _buildDataCell('$totalOverall Balls', align: pw.TextAlign.center, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#00796B')),
+                        ]
+                      : [
+                          pw.SizedBox(),
+                          pw.SizedBox(),
+                          _buildDataCell('TOTAL SUMMARY', fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#00796B')),
+                          _buildDataCell('$totalMonthly Balls', align: pw.TextAlign.center, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#C62828')),
+                          _buildDataCell('$totalOverall Balls', align: pw.TextAlign.center, fontWeight: pw.FontWeight.bold, color: primaryColor),
+                        ],
+                ),
               ],
             ),
-          ];
+          );
+
+          // If monthlyBreakdown is provided, add Month-by-Month history breakdown section
+          if (monthlyBreakdown != null && monthlyBreakdown.isNotEmpty) {
+            widgets.add(pw.SizedBox(height: 25));
+            widgets.add(
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                decoration: pw.BoxDecoration(color: accentColor, borderRadius: pw.BorderRadius.circular(4)),
+                child: pw.Text('MONTH-BY-MONTH BREAKDOWN SUMMARY', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColors.white, letterSpacing: 1)),
+              ),
+            );
+            widgets.add(pw.SizedBox(height: 8));
+
+            final sortedBreakdownMonths = monthlyBreakdown.keys.toList()..sort((a, b) {
+              try {
+                DateTime da = DateFormat('MMMM yyyy').parse(a);
+                DateTime db = DateFormat('MMMM yyyy').parse(b);
+                return db.compareTo(da);
+              } catch (_) {
+                return b.compareTo(a);
+              }
+            });
+
+            for (var mName in sortedBreakdownMonths) {
+              final mList = monthlyBreakdown[mName] ?? [];
+              final activePlayersInMonth = mList.where((p) => ((p['total'] ?? 0) as num) > 0).toList()
+                ..sort((a, b) => (b['total'] as num).compareTo(a['total'] as num));
+
+              if (activePlayersInMonth.isEmpty) continue;
+
+              final int monthSum = activePlayersInMonth.fold<int>(0, (sum, p) => sum + ((p['total'] ?? 0) as num).toInt());
+
+              widgets.add(
+                pw.Container(
+                  margin: const pw.EdgeInsets.only(top: 10, bottom: 4),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(mName.toUpperCase(), style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: primaryColor)),
+                      pw.Text('Month Total: $monthSum Balls', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8, color: PdfColor.fromHex('#C62828'))),
+                    ],
+                  ),
+                ),
+              );
+
+              widgets.add(
+                _buildTable(
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(30),
+                    1: const pw.FlexColumnWidth(),
+                    2: const pw.FixedColumnWidth(80),
+                  },
+                  [
+                    pw.TableRow(
+                      decoration: pw.BoxDecoration(color: PdfColor.fromHex('#ECEFF1')),
+                      children: [
+                        _buildHeaderCell('No.', align: pw.TextAlign.center, textColor: textDark),
+                        _buildHeaderCell('Player Name', textColor: textDark),
+                        _buildHeaderCell('Balls Lost', align: pw.TextAlign.center, textColor: textDark),
+                      ],
+                    ),
+                    ...activePlayersInMonth.asMap().entries.map((entry) {
+                      final p = entry.value;
+                      return pw.TableRow(
+                        decoration: pw.BoxDecoration(color: entry.key % 2 == 0 ? PdfColors.white : bgLight),
+                        children: [
+                          _buildDataCell('${entry.key + 1}', align: pw.TextAlign.center, fontSize: 8),
+                          _buildDataCell(StringUtils.capitalize(p['name']), fontSize: 8, fontWeight: pw.FontWeight.bold),
+                          _buildDataCell('${p['total']}', align: pw.TextAlign.center, fontSize: 8, color: PdfColor.fromHex('#C62828'), fontWeight: pw.FontWeight.bold),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+              );
+              widgets.add(pw.SizedBox(height: 6));
+            }
+          }
+
+          return widgets;
         },
       ),
     );
@@ -533,7 +724,7 @@ class ExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(30),
-        header: (context) => _buildPdfHeader('Official Player Fine Status', 'Cumulative Financial Account Standing', logoImage),
+        header: (context) => _buildPdfHeader('Official Player Fine Status', monthYear == 'Overall' ? 'Cumulative Financial Account Standing' : 'Account Standing: $monthYear', logoImage),
         footer: (context) => _buildPdfFooter('Fine Record Document', context.pageNumber),
         build: (pw.Context context) {
           return [

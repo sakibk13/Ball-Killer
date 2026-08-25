@@ -566,6 +566,16 @@ class DatabaseService {
     }
   }
 
+  Future<List<User>> getAllUsers() async {
+    try {
+      final snap = await _db.collection('users').get();
+      return snap.docs.map((doc) => User.fromMap(doc.data())).toList();
+    } catch (e) {
+      debugPrint('!!! GET ALL USERS ERROR: $e');
+      return [];
+    }
+  }
+
   // Memory operations (About Us)
   Future<List<Memory>> getMemories() async {
     try {

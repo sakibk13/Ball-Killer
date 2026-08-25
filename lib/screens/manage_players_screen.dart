@@ -211,19 +211,36 @@ class _ManagePlayersScreenState extends State<ManagePlayersScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF020C3B),
-        title: Text('DELETE PLAYER?', style: GoogleFonts.bebasNeue(color: Colors.white, letterSpacing: 1)),
-        content: Text('Are you sure you want to remove ${player.name} from the system? This will also delete their login account.', style: const TextStyle(color: Colors.white70)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.redAccent, width: 1.5)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+            const SizedBox(width: 10),
+            Text('DELETE PLAYER?', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 20, letterSpacing: 1)),
+          ],
+        ),
+        content: Text('Are you sure you want to remove ${player.name}? This action cannot be undone.', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
           TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('CANCEL', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 16)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             onPressed: () async {
               Navigator.pop(context);
-              await Provider.of<BallProvider>(context, listen: false).deletePlayer(player.id!, player.phone);
-              if (mounted) {
-                StatusDialog.show(context, message: "Player removed successfully.", isSuccess: true, title: "PLAYER DELETED");
+              try {
+                await Provider.of<BallProvider>(context, listen: false).deletePlayer(player.id!, player.phone);
+                if (mounted) {
+                  StatusDialog.show(context, message: "${player.name} removed successfully.", isSuccess: true, title: "PLAYER DELETED");
+                }
+              } catch (e) {
+                if (mounted) {
+                  StatusDialog.show(context, message: "Failed to delete player: $e", isSuccess: false, title: "DELETE FAILED");
+                }
               }
             },
-            child: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
+            child: Text('DELETE NOW', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 16)),
           ),
         ],
       ),

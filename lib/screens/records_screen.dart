@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +8,7 @@ import '../providers/ball_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/ball_record.dart';
 import '../utils/date_utils.dart';
+import '../utils/string_utils.dart';
 
 class RecordsScreen extends StatefulWidget {
   const RecordsScreen({super.key});
@@ -15,8 +18,7 @@ class RecordsScreen extends StatefulWidget {
 }
 
 class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateMixin {
-  final String _selectedMonthYear = 'Overall';
-  List<String> _monthList = ['Overall'];
+  List<String> _monthList = [DateFormat('MMMM yyyy').format(DateTime.now())];
   TabController? _tabController;
 
   @override
@@ -56,7 +58,7 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
       }
     });
     
-    final newList = ['Overall', ...sortedMonths];
+    final newList = sortedMonths.isEmpty ? [DateFormat('MMMM yyyy').format(DateTime.now())] : sortedMonths;
     
     if (newList.length != _monthList.length) {
       setState(() {
@@ -84,12 +86,6 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
   Widget build(BuildContext context) {
     final ballProvider = Provider.of<BallProvider>(context);
     
-    // Check if we need to update month list if records changed
-    if (ballProvider.allRecords.isNotEmpty && _monthList.length <= 3) {
-       // This is a bit hacky, but avoids infinite setStates if handled carefully
-       // Better to do this in Provider or with a listener
-    }
-
     if (_tabController == null || _tabController!.length != _monthList.length) {
        _tabController = TabController(length: _monthList.length, vsync: this);
     }
@@ -108,10 +104,7 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
           labelColor: Colors.tealAccent,
           unselectedLabelColor: Colors.white38,
           labelStyle: GoogleFonts.bebasNeue(fontSize: 14, letterSpacing: 1),
-          tabs: _monthList.map((m) {
-            String display = m == 'Overall' ? 'OVERALL' : m.toUpperCase();
-            return Tab(text: display);
-          }).toList(),
+          tabs: _monthList.map((m) => Tab(text: m.toUpperCase())).toList(),
         ),
       ),
       body: Center(
@@ -122,7 +115,7 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
             color: Colors.tealAccent,
             child: TabBarView(
               controller: _tabController,
-              children: _monthList.map((m) => _buildMonthTable(m, ballProvider.allRecords)).toList(),
+              children: _monthList.map((m) => _buildMonthTable(m, ballProvider)).toList(),
             ),
           ),
         ),
@@ -130,13 +123,13 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildMonthTable(String monthYear, List<BallRecord> allRecords) {
+  Widget _buildMonthTable(String monthYear, BallProvider ballProvider) {
     final isAdmin = Provider.of<AuthProvider>(context, listen: false).isAdmin;
+    final allRecords = ballProvider.allRecords;
+    final players = ballProvider.players;
     final normalizedSearchMonth = DateUtilsHelper.normalizeMonthYear(monthYear);
     
-    final filteredRecords = normalizedSearchMonth == 'Overall' 
-        ? allRecords 
-        : allRecords.where((r) => DateUtilsHelper.normalizeMonthYear(r.monthYear) == normalizedSearchMonth).toList();
+    final filteredRecords = allRecords.where((r) => DateUtilsHelper.normalizeMonthYear(r.monthYear) == normalizedSearchMonth).toList();
 
     if (filteredRecords.isEmpty) {
       return Center(
@@ -220,6 +213,16 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
                       final totalLost = summarized[name];
                       final originals = originalRecords[name]!;
 
+                      Uint8List? pBytes;
+                      try {
+                        final player = players.firstWhere(
+                          (p) => (p.id != null && p.id == originals.first.playerId) || p.name.toLowerCase() == name.toLowerCase(),
+                        );
+                        if (player.photoUrl.isNotEmpty) {
+                          pBytes = base64Decode(player.photoUrl);
+                        }
+                      } catch (_) {}
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -230,11 +233,20 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
                         ),
                         child: Row(
                           children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: Colors.white10,
+                              backgroundImage: pBytes != null ? MemoryImage(pBytes) : null,
+                              child: pBytes == null
+                                  ? Text(name[0].toUpperCase(), style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 16))
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(name[0].toUpperCase() + name.substring(1).toLowerCase(), style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                  Text(StringUtils.capitalize(name), style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                                   if (originals.length > 1 && !Provider.of<AuthProvider>(context, listen: false).isGuest)
                                     Text('${originals.length} entries summarized', style: const TextStyle(color: Colors.white24, fontSize: 9)),
                                 ],
@@ -305,7 +317,7 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('PLAYER: ${record.playerName}', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+            Text('PLAYER: ${StringUtils.capitalize(record.playerName)}', style: const TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 15),
             TextField(
               controller: controller,
@@ -354,7 +366,7 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF020C3B),
         title: Text('DELETE RECORD', style: GoogleFonts.bebasNeue(color: Colors.white, letterSpacing: 1.2)),
-        content: Text('Are you sure you want to delete this record for ${record.playerName}?', style: const TextStyle(color: Colors.white70)),
+        content: Text('Are you sure you want to delete this record for ${StringUtils.capitalize(record.playerName)}?', style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
           TextButton(

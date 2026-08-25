@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/room_provider.dart';
 import '../providers/ball_provider.dart';
 import '../providers/contribution_provider.dart';
 import '../providers/inventory_provider.dart';
 import '../services/database_service.dart';
+import '../utils/status_dialog.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -96,7 +98,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const String quote = "খেলাধুলায় বাড়ে বল, মাদক ছেড়ে খেলতে চল।";
+    const String quote = "Track Ball Loss • Manage Fines • Enjoy Cricket";
 
     if (_isAutoLoginChecking) {
       return Scaffold(
@@ -118,7 +120,7 @@ class _AuthScreenState extends State<AuthScreen> {
               Text(
                 quote,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.hindSiliguri(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w600),
+                style: GoogleFonts.poppins(fontSize: 13, color: Colors.tealAccent, fontWeight: FontWeight.w500, letterSpacing: 1),
               ),
               const SizedBox(height: 40),
               const CircularProgressIndicator(color: Colors.orange),
@@ -150,14 +152,14 @@ class _AuthScreenState extends State<AuthScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Image.asset('assets/logo2.png', width: 150, height: 150, errorBuilder: (c, e, s) => const Icon(Icons.sports_cricket, size: 80, color: Colors.orange)),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 15),
+                    Text('BALL KILLER', style: GoogleFonts.bebasNeue(fontSize: 42, color: Colors.white, letterSpacing: 3)),
+                    const SizedBox(height: 6),
                     Text(
                       quote,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.hindSiliguri(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.poppins(fontSize: 12, color: Colors.tealAccent, fontWeight: FontWeight.w500, letterSpacing: 0.8),
                     ),
-                    const SizedBox(height: 30),
-                    Text('BALL KILLER', style: GoogleFonts.bebasNeue(fontSize: 40, color: Colors.white, letterSpacing: 3)),
                     const SizedBox(height: 40),
                     if (!_isLogin) ...[
                       _buildInput(_nameController, 'Full Name', Icons.person),
@@ -188,19 +190,25 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 20),
                     const Divider(color: Colors.white10),
                     const SizedBox(height: 20),
+                    const SizedBox(height: 20),
+                    const Divider(color: Colors.white10),
+                    const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       height: 50,
-                      child: OutlinedButton.icon(
-                        onPressed: _submitGuest,
-                        icon: const Icon(Icons.visibility_outlined, color: Colors.orange, size: 20),
-                        label: Text('GUEST EXPLORATION', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 16, letterSpacing: 1.5)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.orange, width: 1.5),
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showJoinRoomModal(context),
+                        icon: const Icon(Icons.meeting_room_rounded, color: Colors.tealAccent, size: 20),
+                        label: Text('JOIN A ROOM', style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 16, letterSpacing: 1.5)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.05),
+                          side: BorderSide(color: Colors.tealAccent.withOpacity(0.5)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    Text('Log in or Register to Create & Admin your own Room', style: GoogleFonts.poppins(color: Colors.white38, fontSize: 11)),
                   ],
                 ),
               ),
@@ -238,6 +246,181 @@ class _AuthScreenState extends State<AuthScreen> {
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.white10)),
       ),
       validator: (v) => v!.isEmpty ? 'Required' : null,
+    );
+  }
+
+  void _showJoinRoomModal(BuildContext context) {
+    final codeCtrl = TextEditingController(text: 'SPK13');
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 24, left: 24, right: 24, top: 24),
+        decoration: const BoxDecoration(
+          color: Color(0xFF020C3B),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 20),
+            Text('JOIN A ROOM', style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 28, letterSpacing: 1.5)),
+            Text('Enter a 6-character room code to view room records', style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: codeCtrl,
+              maxLength: 6,
+              textCapitalization: TextCapitalization.characters,
+              style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 24, letterSpacing: 3),
+              decoration: InputDecoration(
+                labelText: 'ROOM CODE (E.G. SPK13)',
+                labelStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                prefixIcon: const Icon(Icons.vpn_key_rounded, color: Colors.tealAccent),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.05),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final code = codeCtrl.text.trim().toUpperCase();
+                  if (code.isEmpty) return;
+                  final roomProv = Provider.of<RoomProvider>(context, listen: false);
+                  final authProv = Provider.of<AuthProvider>(context, listen: false);
+
+                  bool joined = await roomProv.joinRoom(code);
+                  if (joined) {
+                    if (authProv.currentUser == null) {
+                      await authProv.loginAsGuest();
+                    }
+                    if (mounted) {
+                      Navigator.pop(ctx);
+                      Provider.of<BallProvider>(context, listen: false).init(force: true);
+                      Provider.of<ContributionProvider>(context, listen: false).fetchContributions(force: true);
+                      StatusDialog.show(context, title: "ROOM JOINED", message: "Joined Room: $code", isSuccess: true);
+                    }
+                  } else {
+                    if (mounted) {
+                      StatusDialog.show(context, title: "NOT FOUND", message: "Room '$code' not found.", isSuccess: false);
+                    }
+                  }
+                },
+                icon: const Icon(Icons.login_rounded, color: Colors.white),
+                label: Text('JOIN ROOM NOW', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 18, letterSpacing: 1.2)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCreateRoomModal(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 24, left: 24, right: 24, top: 24),
+        decoration: const BoxDecoration(
+          color: Color(0xFF020C3B),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 20),
+            Text('CREATE A ROOM', style: GoogleFonts.bebasNeue(color: Colors.amberAccent, fontSize: 28, letterSpacing: 1.5)),
+            Text('Create a new room and become the Room Admin', style: GoogleFonts.poppins(color: Colors.white54, fontSize: 12)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: nameCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'ROOM NAME (E.G. MINICRICKET CLUB)',
+                labelStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                prefixIcon: const Icon(Icons.meeting_room, color: Colors.amberAccent),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.05),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 15),
+            TextField(
+              controller: codeCtrl,
+              maxLength: 6,
+              textCapitalization: TextCapitalization.characters,
+              style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 22, letterSpacing: 2),
+              decoration: InputDecoration(
+                labelText: '6-CHAR ROOM CODE (E.G. SPK13X)',
+                labelStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                prefixIcon: const Icon(Icons.pin, color: Colors.amberAccent),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.05),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final name = nameCtrl.text.trim();
+                  final code = codeCtrl.text.trim().toUpperCase();
+                  if (name.isEmpty || code.length != 6) {
+                    StatusDialog.show(context, title: "INVALID CODE", message: "Code must be 6 characters long.", isSuccess: false);
+                    return;
+                  }
+
+                  final authProv = Provider.of<AuthProvider>(context, listen: false);
+                  final roomProv = Provider.of<RoomProvider>(context, listen: false);
+
+                  if (authProv.currentUser == null) {
+                    await authProv.loginAsGuest();
+                  }
+
+                  final adminPhone = authProv.currentUser?.phone ?? 'admin_phone';
+                  bool created = await roomProv.createRoom(code: code, name: name, adminPhone: adminPhone);
+
+                  if (created) {
+                    if (mounted) {
+                      Navigator.pop(ctx);
+                      Provider.of<BallProvider>(context, listen: false).init(force: true);
+                      StatusDialog.show(context, title: "ROOM CREATED", message: "Room $code Created! You are Room Admin.", isSuccess: true);
+                    }
+                  } else {
+                    if (mounted) {
+                      StatusDialog.show(context, title: "EXISTS", message: "Room Code '$code' already exists.", isSuccess: false);
+                    }
+                  }
+                },
+                icon: const Icon(Icons.add_circle_outline, color: Colors.white),
+                label: Text('CREATE ROOM (BECOME ADMIN)', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 18, letterSpacing: 1.2)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber.shade800,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

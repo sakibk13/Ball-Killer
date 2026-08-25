@@ -75,14 +75,28 @@ class BallProvider with ChangeNotifier {
 
   List<Map<String, dynamic>> getPlayersWithTotals({String? monthYear}) {
     if (monthYear == null || monthYear == 'Overall') {
-      return _players.map((p) => {
-        'id': p.id,
-        'name': p.name,
-        'phone': p.phone,
-        'photoUrl': p.photoUrl,
-        'password': p.password,
-        'total': p.totalLost,
-      }).toList();
+      return _players.map((p) {
+        final int recordSum = _allRecords.where((r) => 
+          (r.playerId.isNotEmpty && r.playerId == p.id) || 
+          r.playerName.toLowerCase() == p.name.toLowerCase()
+        ).fold(0, (sum, r) => sum + r.lostCount);
+
+        final int totalBalls = max(p.totalLost, recordSum);
+
+        return {
+          'id': p.id,
+          'name': p.name,
+          'phone': p.phone,
+          'photoUrl': p.photoUrl,
+          'password': p.password,
+          'total': totalBalls,
+          'totalOverall': totalBalls,
+        };
+      }).toList()..sort((a, b) {
+        int cmp = (b['total'] as num).compareTo(a['total'] as num);
+        if (cmp != 0) return cmp;
+        return (a['name'] as String).toLowerCase().compareTo((b['name'] as String).toLowerCase());
+      });
     }
 
     String normalizedSearchMonth = DateUtilsHelper.normalizeMonthYear(monthYear);
@@ -90,18 +104,32 @@ class BallProvider with ChangeNotifier {
     
     for (var record in _allRecords) {
       if (DateUtilsHelper.normalizeMonthYear(record.monthYear) == normalizedSearchMonth) {
-        monthlyTotals[record.playerId] = (monthlyTotals[record.playerId] ?? 0) + record.lostCount;
+        final String pId = record.playerId.isNotEmpty ? record.playerId : record.playerName.toLowerCase();
+        monthlyTotals[pId] = (monthlyTotals[pId] ?? 0) + record.lostCount;
+        if (record.playerName.isNotEmpty) {
+          monthlyTotals[record.playerName.toLowerCase()] = (monthlyTotals[record.playerName.toLowerCase()] ?? 0) + record.lostCount;
+        }
       }
     }
 
-    return _players.map((p) => {
-      'id': p.id,
-      'name': p.name,
-      'phone': p.phone,
-      'photoUrl': p.photoUrl,
-      'password': p.password,
-      'total': max(0, monthlyTotals[p.id!] ?? 0),
-      'totalOverall': p.totalLost,
+    return _players.map((p) {
+      final int monthLoss = monthlyTotals[p.id ?? ''] ?? monthlyTotals[p.name.toLowerCase()] ?? 0;
+
+      final int recordSum = _allRecords.where((r) => 
+        (r.playerId.isNotEmpty && r.playerId == p.id) || 
+        r.playerName.toLowerCase() == p.name.toLowerCase()
+      ).fold(0, (sum, r) => sum + r.lostCount);
+      final int overallBalls = max(p.totalLost, recordSum);
+
+      return {
+        'id': p.id,
+        'name': p.name,
+        'phone': p.phone,
+        'photoUrl': p.photoUrl,
+        'password': p.password,
+        'total': max(0, monthLoss),
+        'totalOverall': overallBalls,
+      };
     }).toList()..sort((a, b) {
       int cmp = (b['total'] as num).compareTo(a['total'] as num);
       if (cmp != 0) return cmp;

@@ -53,6 +53,10 @@ android {
     }
 }
 
+base {
+    archivesName.set("Ball-Terminator")
+}
+
 flutter {
     source = "../.."
 }

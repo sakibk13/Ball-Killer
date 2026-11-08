@@ -5,5 +5,4 @@ class AppConfig {
   static const String bankAccountNumber = 'YOUR_ACCOUNT_NUMBER';
   static const String bankName = 'YOUR_BANK_NAME';
   static const String routingNumber = 'YOUR_ROUTING_NUMBER';
-  static const String googleDeployId = 'YOUR_GOOGLE_SCRIPT_DEPLOY_ID';
 }

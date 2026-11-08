@@ -12,6 +12,7 @@ import 'providers/fine_provider.dart';
 import 'providers/fund_provider.dart';
 import 'providers/room_provider.dart';
 import 'providers/about_us_provider.dart';
+import 'providers/unintentional_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/dashboard_screen.dart';
 
@@ -34,21 +35,22 @@ void main() async {
         ChangeNotifierProvider(create: (_) => FineProvider()),
         ChangeNotifierProvider(create: (_) => FundProvider()),
         ChangeNotifierProvider(create: (_) => AboutUsProvider()),
+        ChangeNotifierProvider(create: (_) => UnintentionalProvider()),
       ],
 
-      child: const BallKillerApp(),
+      child: const BallTerminatorApp(),
     ),
   );
 }
 
-class BallKillerApp extends StatelessWidget {
-  const BallKillerApp({super.key});
+class BallTerminatorApp extends StatelessWidget {
+  const BallTerminatorApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Ball Killer',
+      title: 'Ball Terminator',
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         dragDevices: {
           PointerDeviceKind.touch,
@@ -78,3 +80,5 @@ class BallKillerApp extends StatelessWidget {
     );
   }
 }
+
+typedef BallKillerApp = BallTerminatorApp;

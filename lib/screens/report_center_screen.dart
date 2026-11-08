@@ -9,8 +9,14 @@ import '../providers/ball_provider.dart';
 import '../providers/fine_provider.dart';
 import '../providers/contribution_provider.dart';
 import '../providers/fund_provider.dart';
+import '../providers/unintentional_provider.dart';
+import '../providers/inventory_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/room_provider.dart';
+import 'payment_notice_screen.dart';
 import '../models/fund.dart';
 import '../utils/export_service.dart';
+import '../utils/excel_export_service.dart';
 import '../utils/status_dialog.dart';
 import '../utils/date_utils.dart';
 
@@ -23,6 +29,7 @@ class ReportCenterScreen extends StatefulWidget {
 
 class _ReportCenterScreenState extends State<ReportCenterScreen> {
   bool _isProcessing = false;
+  String _processingMessage = 'GENERATING REPORT...';
   String? _selectedMonth;
 
   @override
@@ -34,6 +41,8 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
       Provider.of<FundProvider>(context, listen: false).fetchFunds();
       Provider.of<FineProvider>(context, listen: false).fetchPayments();
       Provider.of<ContributionProvider>(context, listen: false).fetchContributions();
+      Provider.of<UnintentionalProvider>(context, listen: false).fetchRecords();
+      Provider.of<InventoryProvider>(context, listen: false).fetchInventory();
     });
   }
 
@@ -159,11 +168,13 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
       final fineProv = Provider.of<FineProvider>(context, listen: false);
       final contProv = Provider.of<ContributionProvider>(context, listen: false);
       final fundProv = Provider.of<FundProvider>(context, listen: false);
+      final roomProv = Provider.of<RoomProvider>(context, listen: false);
+      final room = roomProv.currentRoom;
 
       if (type == 'LEADERBOARD') {
         final players = ballProv.getPlayersWithTotals(monthYear: month);
         final breakdown = _getMonthlyBreakdownMap(ballProv);
-        await ExportService.exportLeaderboard(monthYear: month, players: players, monthlyBreakdown: breakdown);
+        await ExportService.exportLeaderboard(monthYear: month, players: players, monthlyBreakdown: breakdown, room: room);
       } else if (type == 'FINES') {
         final playersWithTotals = ballProv.getPlayersWithTotals(monthYear: month);
         final enriched = playersWithTotals.map((p) {
@@ -190,10 +201,10 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
             'surplus': credit,
           };
         }).toList();
-        await ExportService.exportFineReport(monthYear: month, sortedPlayers: enriched);
+        await ExportService.exportFineReport(monthYear: month, sortedPlayers: enriched, room: room);
       } else if (type == 'FINANCIALS') {
         final summaryData = _getSummaryData(contProv, fineProv, month);
-        await ExportService.exportFinancialSummaryReport(monthYear: month, data: summaryData, players: ballProv.players);
+        await ExportService.exportFinancialSummaryReport(monthYear: month, data: summaryData, players: ballProv.players, room: room);
       } else if (type == 'TREASURY') {
         final List<Fund> filteredFunds = month == 'Overall' 
             ? fundProv.funds 
@@ -201,7 +212,7 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
         final double grandTotal = month == 'Overall' 
             ? fundProv.grandTotal 
             : filteredFunds.fold(0, (sum, f) => f.type == 'EXPENSE' ? sum - f.amount : sum + f.amount);
-        await ExportService.exportFundReport(funds: filteredFunds, grandTotal: grandTotal, players: ballProv.players, monthYear: month);
+        await ExportService.exportFundReport(funds: filteredFunds, grandTotal: grandTotal, players: ballProv.players, monthYear: month, room: room);
       }
 
       if (mounted) {
@@ -214,6 +225,68 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
+  }
+
+  Future<void> _exportExcel({String? customScope}) async {
+    final String scope = customScope ?? _selectedMonth ?? 'Overall';
+    setState(() {
+      _isProcessing = true;
+      _processingMessage = 'GENERATING EXCEL WORKBOOK ($scope)...';
+    });
+
+    try {
+      final ballProv = Provider.of<BallProvider>(context, listen: false);
+      final unintProv = Provider.of<UnintentionalProvider>(context, listen: false);
+      final fineProv = Provider.of<FineProvider>(context, listen: false);
+      final contProv = Provider.of<ContributionProvider>(context, listen: false);
+      final fundProv = Provider.of<FundProvider>(context, listen: false);
+      final invProv = Provider.of<InventoryProvider>(context, listen: false);
+      final authProv = Provider.of<AuthProvider>(context, listen: false);
+
+      await ExcelExportService.exportComprehensiveExcel(
+        scopeTitle: scope,
+        playerRecords: ballProv.allRecords,
+        unintentionalRecords: unintProv.records,
+        players: ballProv.players,
+        finePayments: fineProv.payments,
+        contributions: contProv.contributions,
+        funds: fundProv.funds,
+        inventoryList: invProv.inventoryList,
+        exportedBy: authProv.currentUser?.name ?? 'Admin',
+      );
+
+      if (mounted) {
+        StatusDialog.show(
+          context,
+          title: "EXCEL EXPORT READY",
+          message: "Multi-sheet Excel file ($scope) generated with all sub-sections!",
+          isSuccess: true,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        StatusDialog.show(
+          context,
+          title: "EXPORT FAILED",
+          message: "Excel generation error: $e",
+          isSuccess: false,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  List<int> _getAvailableYears(BallProvider bp, UnintentionalProvider up) {
+    final Set<int> years = {DateTime.now().year};
+    for (var r in bp.allRecords) {
+      years.add(r.date.year);
+    }
+    for (var r in up.records) {
+      years.add(r.date.year);
+    }
+    final sorted = years.toList()..sort((a, b) => b.compareTo(a));
+    return sorted;
   }
 
   Map<String, Map<String, double>> _getSummaryData(ContributionProvider p, FineProvider fp, String monthYear) {
@@ -282,6 +355,46 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
                           ),
                           const SizedBox(height: 30),
 
+                          // EXCEL MULTI-SHEET EXPORTS
+                          _buildSectionTitle('EXCEL MULTI-SHEET WORKBOOK EXPORT (.XLSX)', const Color(0xFF00E676)),
+                          const SizedBox(height: 12),
+                          _buildExcelInfoCard(),
+                          const SizedBox(height: 15),
+                          GridView.count(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 1,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: MediaQuery.of(context).size.width > 600 ? 2.5 : 3.8,
+                            children: [
+                              _buildExcelExportActionCard(
+                                title: 'FULL APP MASTER EXCEL',
+                                subtitle: 'All Time Overall (11 Sub-Sheets)',
+                                icon: Icons.table_chart_rounded,
+                                color: const Color(0xFF00E676),
+                                onTap: () => _exportExcel(customScope: 'Overall'),
+                              ),
+                              _buildExcelExportActionCard(
+                                title: 'SELECTED PERIOD EXCEL',
+                                subtitle: _selectedMonth ?? 'Overall',
+                                icon: Icons.calendar_month_rounded,
+                                color: Colors.tealAccent,
+                                onTap: () => _exportExcel(),
+                              ),
+                              _buildExcelExportActionCard(
+                                title: 'MONTHS CHRONOLOGY',
+                                subtitle: 'All Months Side-by-Side',
+                                icon: Icons.view_timeline_rounded,
+                                color: Colors.cyanAccent,
+                                onTap: () => _exportExcel(customScope: 'Overall'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _buildYearwiseExcelSection(ballProvider),
+                          const SizedBox(height: 30),
+
                           // OVERALL SECTION
                           _buildSectionTitle('REPORT PERIOD SELECTION', Colors.orangeAccent),
                           const SizedBox(height: 15),
@@ -304,7 +417,7 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
                               return _buildReportItem(month.toUpperCase(), month, Icons.calendar_month_rounded, Colors.orangeAccent);
                             },
                           ),
-                          const SizedBox(height: 120),
+                          const SizedBox(height: 130),
                         ],
                       ),
                     ),
@@ -318,9 +431,9 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CircularProgressIndicator(color: Colors.orange),
+                        const CircularProgressIndicator(color: Color(0xFF00E676)),
                         const SizedBox(height: 20),
-                        Text('GENERATING PDF REPORT...', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 20, letterSpacing: 1.2)),
+                        Text(_processingMessage, style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 20, letterSpacing: 1.2)),
                       ],
                     ),
                   ),
@@ -375,12 +488,22 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
           ),
         ),
         const SizedBox(width: 15),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('ANALYTICS & EXPORTS', style: GoogleFonts.poppins(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 2)),
-            Text('REPORT CENTER', style: GoogleFonts.bebasNeue(fontSize: 32, color: Colors.white, letterSpacing: 1.5)),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('ANALYTICS & EXPORTS', style: GoogleFonts.poppins(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 2)),
+              Text('REPORT CENTER', style: GoogleFonts.bebasNeue(fontSize: 32, color: Colors.white, letterSpacing: 1.5)),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'bKash & Bank Notice',
+          icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.tealAccent),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PaymentNoticeScreen()),
+          ),
         ),
       ],
     );
@@ -436,33 +559,201 @@ class _ReportCenterScreenState extends State<ReportCenterScreen> {
     );
   }
 
-  Widget _buildBottomActionContainer() {
-    final label = _selectedMonth != null 
-        ? (_selectedMonth == 'Overall' ? 'GENERATE MASTER BUNDLE REPORT' : 'GENERATE ${_selectedMonth!.toUpperCase()} MASTER BUNDLE')
-        : 'SELECT A REPORT';
-
+  Widget _buildExcelInfoCard() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.transparent, const Color(0xFF020C3B).withOpacity(0.8), const Color(0xFF020C3B)],
+          colors: [const Color(0xFF00E676).withOpacity(0.12), const Color(0xFF020C3B)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF00E676).withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.table_chart_rounded, color: Color(0xFF00E676), size: 22),
+              const SizedBox(width: 10),
+              Text('MULTI-SHEET WORKBOOK INCLUDES:', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 16, letterSpacing: 1)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _buildSheetBadge('1. Executive Overview'),
+              _buildSheetBadge('2. Monthly Summary'),
+              _buildSheetBadge('3. Player Ball Loss'),
+              _buildSheetBadge('4. Unintentional Loss'),
+              _buildSheetBadge('5. Daily Comparison'),
+              _buildSheetBadge('6. Fines & Dues Status'),
+              _buildSheetBadge('7. Fine Payments'),
+              _buildSheetBadge('8. Contributions'),
+              _buildSheetBadge('9. Treasury Funds'),
+              _buildSheetBadge('10. Inventory Stock'),
+              _buildSheetBadge('11. Players Roster'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSheetBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF00E676).withOpacity(0.2)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.poppins(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+
+  Widget _buildExcelExportActionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF020C3B),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withOpacity(0.4)),
+          boxShadow: [
+            BoxShadow(color: color.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(title, style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 14, letterSpacing: 0.8), overflow: TextOverflow.ellipsis),
+                  Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 10), overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            Icon(Icons.download_rounded, color: color, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildYearwiseExcelSection(BallProvider bp) {
+    final unintProv = Provider.of<UnintentionalProvider>(context, listen: false);
+    final years = _getAvailableYears(bp, unintProv);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.date_range_rounded, color: Colors.cyanAccent, size: 16),
+            const SizedBox(width: 8),
+            Text('YEAR-WISE EXCEL EXPORTS (ANNUAL WORKBOOKS):', style: GoogleFonts.bebasNeue(color: Colors.white70, fontSize: 13, letterSpacing: 1)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: years.map((y) {
+            return InkWell(
+              onTap: () => _exportExcel(customScope: 'Year: $y'),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.cyanAccent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.file_download_outlined, color: Colors.cyanAccent, size: 14),
+                    const SizedBox(width: 6),
+                    Text('YEAR $y EXCEL', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 13, letterSpacing: 0.8)),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomActionContainer() {
+    final String targetPeriod = _selectedMonth ?? 'Overall';
+    final String pdfLabel = targetPeriod == 'Overall' ? 'PDF BUNDLE' : '${targetPeriod.toUpperCase()} PDF';
+    final String excelLabel = targetPeriod == 'Overall' ? 'EXCEL (.XLSX)' : '${targetPeriod.toUpperCase()} EXCEL';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.transparent, const Color(0xFF020C3B).withOpacity(0.95), const Color(0xFF020C3B)],
           begin: Alignment.topCenter, end: Alignment.bottomCenter,
         ),
       ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
-          child: ElevatedButton.icon(
-            onPressed: _selectedMonth != null ? () => _generateMonthlyBundle() : null,
-            icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.white),
-            label: Text(label, style: GoogleFonts.bebasNeue(fontSize: 18, color: Colors.white, letterSpacing: 1.2)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange, 
-              minimumSize: const Size(double.infinity, 60),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              elevation: 8,
-              shadowColor: Colors.orange.withOpacity(0.4),
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _selectedMonth != null ? () => _generateMonthlyBundle() : null,
+                  icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.white, size: 20),
+                  label: Text(pdfLabel, style: GoogleFonts.bebasNeue(fontSize: 15, color: Colors.white, letterSpacing: 1), overflow: TextOverflow.ellipsis),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    minimumSize: const Size(0, 56),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    elevation: 6,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _exportExcel(),
+                  icon: const Icon(Icons.table_chart_rounded, color: Colors.white, size: 20),
+                  label: Text(excelLabel, style: GoogleFonts.bebasNeue(fontSize: 15, color: Colors.white, letterSpacing: 1), overflow: TextOverflow.ellipsis),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00C853),
+                    minimumSize: const Size(0, 56),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    elevation: 6,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

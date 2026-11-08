@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../models/ball_record.dart';
 import '../utils/date_utils.dart';
 import '../utils/string_utils.dart';
+import 'loss_comparison_screen.dart';
 
 class RecordsScreen extends StatefulWidget {
   const RecordsScreen({super.key});
@@ -97,6 +98,15 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
         backgroundColor: const Color(0xFF020C3B),
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.analytics_rounded, color: Colors.tealAccent),
+            tooltip: 'Loss Comparison',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const LossComparisonScreen()));
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -259,9 +269,9 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
                             ),
                             if (isAdmin) ...[
                               const SizedBox(width: 10),
-                              _buildActionIcon(Icons.edit_outlined, Colors.blueAccent, () => _showEditRecordDialog(context, originals.first)),
+                              _buildActionIcon(Icons.edit_outlined, Colors.blueAccent, () => _showEditRecordDialog(context, originals)),
                               const SizedBox(width: 5),
-                              _buildActionIcon(Icons.delete_outline, Colors.redAccent, () => _showDeleteRecordDialog(context, originals.first)),
+                              _buildActionIcon(Icons.delete_outline, Colors.redAccent, () => _showDeleteRecordDialog(context, originals)),
                             ],
                           ],
                         ),
@@ -306,8 +316,12 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
     );
   }
 
-  void _showEditRecordDialog(BuildContext context, BallRecord record) {
-    final controller = TextEditingController(text: record.lostCount.toString());
+  void _showEditRecordDialog(BuildContext context, List<BallRecord> originals) {
+    if (originals.isEmpty) return;
+    final primaryRecord = originals.first;
+    final int currentTotal = originals.fold(0, (sum, r) => sum + r.lostCount);
+    final controller = TextEditingController(text: currentTotal.toString());
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -317,7 +331,7 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('PLAYER: ${StringUtils.capitalize(record.playerName)}', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+            Text('PLAYER: ${StringUtils.capitalize(primaryRecord.playerName)}', style: const TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 15),
             TextField(
               controller: controller,
@@ -336,44 +350,72 @@ class _RecordsScreenState extends State<RecordsScreen> with TickerProviderStateM
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.tealAccent),
-            onPressed: () {
+            onPressed: () async {
               int? newVal = int.tryParse(controller.text);
               if (newVal != null) {
-                final updatedRecord = BallRecord(
-                  id: record.id,
-                  playerId: record.playerId,
-                  playerName: record.playerName,
-                  lostCount: newVal,
-                  date: record.date,
-                  recordedBy: record.recordedBy,
-                  monthYear: record.monthYear,
-                  note: record.note,
-                );
-                Provider.of<BallProvider>(context, listen: false).updateRecord(updatedRecord, record.lostCount);
+                final adminName = Provider.of<AuthProvider>(context, listen: false).currentUser?.name ?? 'Admin';
+                final ballProv = Provider.of<BallProvider>(context, listen: false);
                 Navigator.pop(ctx);
+
+                if (newVal <= 0) {
+                  // If 0, delete all records for this player on this date so it's not seen
+                  for (var r in originals) {
+                    if (r.id != null) {
+                      await ballProv.deleteRecord(r.id!, r.playerId, r.lostCount, adminName);
+                    }
+                  }
+                } else {
+                  // Remove any duplicate records on this date
+                  for (int i = 1; i < originals.length; i++) {
+                    if (originals[i].id != null) {
+                      await ballProv.deleteRecord(originals[i].id!, originals[i].playerId, originals[i].lostCount, adminName);
+                    }
+                  }
+                  // Update the primary record with newVal
+                  final updatedRecord = BallRecord(
+                    id: primaryRecord.id,
+                    playerId: primaryRecord.playerId,
+                    playerName: primaryRecord.playerName,
+                    lostCount: newVal,
+                    date: primaryRecord.date,
+                    recordedBy: primaryRecord.recordedBy,
+                    monthYear: primaryRecord.monthYear,
+                    note: primaryRecord.note,
+                  );
+                  await ballProv.updateRecord(updatedRecord, primaryRecord.lostCount);
+                }
               }
             },
-            child: const Text('UPDATE', style: TextStyle(color: Colors.white)),
+            child: const Text('UPDATE', style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
     );
   }
 
-  void _showDeleteRecordDialog(BuildContext context, BallRecord record) {
+  void _showDeleteRecordDialog(BuildContext context, List<BallRecord> originals) {
+    if (originals.isEmpty) return;
+    final primaryRecord = originals.first;
+    final int totalCount = originals.fold(0, (sum, r) => sum + r.lostCount);
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF020C3B),
         title: Text('DELETE RECORD', style: GoogleFonts.bebasNeue(color: Colors.white, letterSpacing: 1.2)),
-        content: Text('Are you sure you want to delete this record for ${StringUtils.capitalize(record.playerName)}?', style: const TextStyle(color: Colors.white70)),
+        content: Text('Delete $totalCount ball loss record(s) for ${StringUtils.capitalize(primaryRecord.playerName)}?', style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
           TextButton(
-            onPressed: () {
-              final adminName = Provider.of<AuthProvider>(context, listen: false).currentUser?.name ?? 'Admin';
-              Provider.of<BallProvider>(context, listen: false).deleteRecord(record.id!, record.playerId, record.lostCount, adminName);
+            onPressed: () async {
               Navigator.pop(ctx);
+              final adminName = Provider.of<AuthProvider>(context, listen: false).currentUser?.name ?? 'Admin';
+              final ballProv = Provider.of<BallProvider>(context, listen: false);
+              for (var r in originals) {
+                if (r.id != null) {
+                  await ballProv.deleteRecord(r.id!, r.playerId, r.lostCount, adminName);
+                }
+              }
             },
             child: const Text('DELETE', style: TextStyle(color: Colors.redAccent)),
           ),

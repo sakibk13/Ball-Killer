@@ -394,7 +394,24 @@ class BallProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      await DatabaseService().updateRecord(record, oldCount);
+      if (record.lostCount <= 0) {
+        // If count reduced to 0 or negative, delete the record completely so it is not seen!
+        if (record.id != null) {
+          await DatabaseService().deleteRecord(record.id!, record.playerId, oldCount);
+          _allRecords.removeWhere((r) => r.id == record.id);
+          _todayRecords.removeWhere((r) => r.id == record.id);
+        }
+      } else {
+        await DatabaseService().updateRecord(record, oldCount);
+        final idx = _allRecords.indexWhere((r) => r.id == record.id);
+        if (idx != -1) {
+          _allRecords[idx] = record;
+        }
+        final todayIdx = _todayRecords.indexWhere((r) => r.id == record.id);
+        if (todayIdx != -1) {
+          _todayRecords[todayIdx] = record;
+        }
+      }
       await fetchPlayers();
       await fetchTodayRecords();
       await fetchAllRecords();
@@ -409,12 +426,40 @@ class BallProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final player = _players.firstWhere((p) => p.id == playerId);
+      Player? player;
+      try {
+        player = _players.firstWhere((p) => p.id == playerId);
+      } catch (_) {
+        try {
+          player = _players.firstWhere((p) => p.name.toLowerCase() == adminName.toLowerCase());
+        } catch (_) {}
+      }
+
       await DatabaseService().deleteRecord(recordId, playerId, lostCount);
+
+      // Immediately remove from in-memory lists so it is no longer visible anywhere
+      _allRecords.removeWhere((r) => r.id == recordId);
+      _todayRecords.removeWhere((r) => r.id == recordId);
+
+      if (player != null) {
+        final newTotal = (player.totalLost - lostCount).clamp(0, 999999);
+        final pIdx = _players.indexWhere((p) => p.id == player!.id);
+        if (pIdx != -1) {
+          _players[pIdx] = Player(
+            id: player.id,
+            name: player.name,
+            phone: player.phone,
+            password: player.password,
+            photoUrl: player.photoUrl,
+            totalLost: newTotal,
+          );
+        }
+      }
+
       await DatabaseService().addAuditLog(AuditLog(
         adminName: adminName,
         action: 'DELETE_RECORD',
-        details: 'Deleted record of $lostCount balls for ${player.name}',
+        details: 'Deleted record of $lostCount balls for ${player?.name ?? 'Player'}',
         timestamp: DateTime.now(),
       ));
       await fetchPlayers();

@@ -8,6 +8,7 @@ import '../utils/export_service.dart';
 import '../utils/status_dialog.dart';
 import '../utils/string_utils.dart';
 import '../utils/date_utils.dart';
+import '../providers/room_provider.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -92,10 +93,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 }
 
                 if (playersWithTotals.isNotEmpty) {
+                  final room = Provider.of<RoomProvider>(context, listen: false).currentRoom;
                   await ExportService.exportLeaderboard(
                     monthYear: _selectedMonthYear,
                     players: playersWithTotals,
                     monthlyBreakdown: monthlyBreakdown,
+                    room: room,
                   );
                   if (mounted) {
                     StatusDialog.show(context, title: "SUCCESS", message: "Leaderboard PDF Generated!", isSuccess: true);

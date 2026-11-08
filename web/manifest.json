@@ -1,11 +1,11 @@
 {
-    "name": "Ball Killer",
-    "short_name": "Ball Killer",
+    "name": "Ball Terminator",
+    "short_name": "Ball Terminator",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#051970",
     "theme_color": "#051970",
-    "description": "Club management system for Ball Killer Mini Cricket.",
+    "description": "Club management system for Ball Terminator Sudden Plan Cricket Team.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

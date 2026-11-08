@@ -9,6 +9,8 @@ import '../providers/ball_provider.dart';
 import '../models/player.dart';
 import '../models/ball_record.dart';
 import '../utils/status_dialog.dart';
+import 'unintentional_loss_screen.dart';
+import 'loss_comparison_screen.dart';
 
 class PlayerBallLossScreen extends StatefulWidget {
   final Player? initialPlayer;
@@ -104,6 +106,22 @@ class _PlayerBallLossScreenState extends State<PlayerBallLossScreen> with Single
         title: Text('RECORD LOSS', style: GoogleFonts.bebasNeue(color: Colors.white, letterSpacing: 1.2)),
         backgroundColor: const Color(0xFF020C3B),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: Colors.purpleAccent),
+            tooltip: 'Unintentional Loss',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const UnintentionalLossScreen()));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.analytics_rounded, color: Colors.tealAccent),
+            tooltip: 'Loss Comparison',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const LossComparisonScreen()));
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.orange,
@@ -586,18 +604,23 @@ class _PlayerBallLossScreenState extends State<PlayerBallLossScreen> with Single
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
             TextButton(
               onPressed: () async {
-                final updated = BallRecord(
-                  id: record.id,
-                  playerId: record.playerId,
-                  playerName: record.playerName,
-                  lostCount: newCount,
-                  date: newDate,
-                  recordedBy: record.recordedBy,
-                  monthYear: DateFormat('MMMM yyyy').format(newDate),
-                  note: editNoteController.text,
-                );
-                await provider.updateRecord(updated, record.lostCount);
-                if (mounted) Navigator.pop(context);
+                Navigator.pop(context);
+                if (newCount <= 0) {
+                  final adminName = Provider.of<AuthProvider>(context, listen: false).currentUser?.name ?? 'Admin';
+                  await provider.deleteRecord(record.id!, record.playerId, record.lostCount, adminName);
+                } else {
+                  final updated = BallRecord(
+                    id: record.id,
+                    playerId: record.playerId,
+                    playerName: record.playerName,
+                    lostCount: newCount,
+                    date: newDate,
+                    recordedBy: record.recordedBy,
+                    monthYear: DateFormat('MMMM yyyy').format(newDate),
+                    note: editNoteController.text,
+                  );
+                  await provider.updateRecord(updated, record.lostCount);
+                }
               },
               child: const Text('UPDATE', style: TextStyle(color: Colors.orange)),
             ),

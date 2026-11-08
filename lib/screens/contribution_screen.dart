@@ -15,6 +15,8 @@ import '../utils/status_dialog.dart';
 import '../utils/export_service.dart';
 import '../utils/string_utils.dart';
 import '../utils/date_utils.dart';
+import '../providers/room_provider.dart';
+import 'payment_notice_screen.dart';
 
 class ContributionScreen extends StatefulWidget {
   const ContributionScreen({super.key});
@@ -431,15 +433,25 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
         elevation: 0,
         actions: [
           IconButton(
+            tooltip: 'bKash & Bank Notice',
+            icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.tealAccent),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PaymentNoticeScreen()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.tealAccent),
             onPressed: () async {
               try {
+                final room = Provider.of<RoomProvider>(context, listen: false).currentRoom;
                 if (_tabController.index == 0) {
                   final summaryData = _getUnifiedSummary(provider, fineProvider);
                   await ExportService.exportFinancialSummaryReport(
                     monthYear: _selectedMonthYear, 
                     data: summaryData,
                     players: ballProvider.players,
+                    room: room,
                   );
                 } else if (_tabController.index == 2) {
                   final otherContributions = provider.contributions
@@ -449,6 +461,7 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
                     monthYear: _selectedMonthYear,
                     contributions: otherContributions,
                     players: ballProvider.players,
+                    room: room,
                   );
                 } else {
                   final detailedData = _getUnifiedDetailedList(provider, fineProvider);
@@ -456,6 +469,7 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
                     monthYear: _selectedMonthYear, 
                     contributions: detailedData,
                     players: ballProvider.players,
+                    room: room,
                   );
                 }
                 if (mounted) {
@@ -495,7 +509,7 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
             color: Colors.tealAccent,
             child: Column(
               children: [
-                _buildMonthPickerWithSearch(),
+                _buildMonthPickerWithSearch(provider, fineProvider),
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -520,12 +534,68 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
     );
   }
 
-  Widget _buildMonthPickerWithSearch() {
+  Widget _buildMonthPickerWithSearch(ContributionProvider cp, FineProvider fp) {
+    final summaryData = _getUnifiedSummary(cp, fp);
+    double totalPeriodInflow = 0;
+    Set<String> contributors = {};
+    for (var m in summaryData.values) {
+      for (var entry in m.entries) {
+        totalPeriodInflow += entry.value;
+        contributors.add(entry.key);
+      }
+    }
+    final detailedList = _getUnifiedDetailedList(cp, fp);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: const BoxDecoration(color: Color(0xFF020C3B)),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF020C3B),
+        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.08))),
+      ),
       child: Column(
         children: [
+          // 1. Quick Financial Metrics Card
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.03),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.06)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildTopKpiItem(
+                    title: 'TOTAL INFLOW',
+                    value: '${totalPeriodInflow.toInt()} ৳',
+                    icon: Icons.payments_rounded,
+                    color: const Color(0xFF00E676),
+                  ),
+                ),
+                Container(width: 1, height: 26, color: Colors.white10),
+                Expanded(
+                  child: _buildTopKpiItem(
+                    title: 'CONTRIBUTORS',
+                    value: '${contributors.length}',
+                    icon: Icons.people_alt_rounded,
+                    color: Colors.tealAccent,
+                  ),
+                ),
+                Container(width: 1, height: 26, color: Colors.white10),
+                Expanded(
+                  child: _buildTopKpiItem(
+                    title: 'LOG ENTRIES',
+                    value: '${detailedList.length}',
+                    icon: Icons.receipt_long_rounded,
+                    color: Colors.amberAccent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 2. Month Selector Horizontal Strip
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -533,35 +603,100 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
                 bool isSel = _selectedMonthYear == m;
                 return GestureDetector(
                   onTap: () => setState(() => _selectedMonthYear = m),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: isSel ? Colors.tealAccent : Colors.white.withOpacity(0.05),
+                      gradient: isSel
+                          ? const LinearGradient(colors: [Color(0xFF00E676), Colors.teal])
+                          : null,
+                      color: isSel ? null : Colors.white.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSel ? const Color(0xFF00E676) : Colors.white10,
+                        width: isSel ? 1.2 : 0.8,
+                      ),
                     ),
-                    child: Text(m, style: GoogleFonts.bebasNeue(color: isSel ? const Color(0xFF020C3B) : Colors.white38, fontSize: 14)),
+                    child: Text(
+                      m == 'Overall' ? 'OVERALL' : m.toUpperCase(),
+                      style: GoogleFonts.bebasNeue(
+                        color: isSel ? const Color(0xFF020C3B) : Colors.white38,
+                        fontSize: 13,
+                        letterSpacing: 0.8,
+                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
                   ),
                 );
               }).toList(),
             ),
           ),
           const SizedBox(height: 10),
-          TextField(
-            controller: _searchController,
-            style: const TextStyle(color: Colors.white, fontSize: 13),
-            decoration: InputDecoration(
-              hintText: 'Search Name, Date, Amount, Note...',
-              hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
-              prefixIcon: const Icon(Icons.search, color: Colors.tealAccent, size: 20),
-              filled: true,
-              fillColor: Colors.white.withOpacity(0.03),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+
+          // 3. Search Bar
+          Container(
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: TextField(
+              controller: _searchController,
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
+              decoration: InputDecoration(
+                hintText: 'Search player, note, amount, date...',
+                hintStyle: GoogleFonts.poppins(color: Colors.white24, fontSize: 12),
+                prefixIcon: const Icon(Icons.search, color: Colors.tealAccent, size: 18),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.white38, size: 16),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                border: InputBorder.none,
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTopKpiItem({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 12),
+            const SizedBox(width: 4),
+            Text(
+              title,
+              style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 10, letterSpacing: 0.6),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            style: GoogleFonts.bebasNeue(color: color, fontSize: 16, letterSpacing: 0.5, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
     );
   }
 
@@ -908,7 +1043,18 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
     final combined = _getUnifiedDetailedList(p, fp);
     final isGuest = Provider.of<AuthProvider>(context, listen: false).isGuest;
     
-    if (combined.isEmpty) return const Center(child: Text('No transactions found', style: TextStyle(color: Colors.white24)));
+    if (combined.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.receipt_long_outlined, color: Colors.white24, size: 48),
+            const SizedBox(height: 12),
+            Text('NO TRANSACTIONS FOUND FOR THIS PERIOD', style: GoogleFonts.bebasNeue(color: Colors.white38, fontSize: 16, letterSpacing: 1)),
+          ],
+        ),
+      );
+    }
 
     // Group by Date
     Map<String, List<dynamic>> grouped = {};
@@ -921,45 +1067,94 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
     var dates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return ListView.builder(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
       itemCount: dates.length,
       itemBuilder: (context, index) {
         String dateKey = dates[index];
         DateTime date = DateTime.parse(dateKey);
         List<dynamic> items = grouped[dateKey]!;
+        final double dayTotal = items.fold(0.0, (sum, it) => sum + (it is FinePayment ? it.amountPaid : it.taka));
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 25),
-          child: Row(
+          margin: const EdgeInsets.only(bottom: 18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF020C3B),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 8, offset: const Offset(0, 3)),
+            ],
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Date Card
+              // Day Header with Date & Subtotal
               Container(
-                width: 65,
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFF020C3B), Color(0xFF051970)]),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.tealAccent.withOpacity(0.2)),
+                  gradient: LinearGradient(
+                    colors: [Colors.white.withOpacity(0.06), Colors.white.withOpacity(0.02)],
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.06))),
                 ),
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(DateFormat('MMM').format(date).toUpperCase(), style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 14)),
-                    Text(DateFormat('dd').format(date), style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 28, height: 1)),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.tealAccent.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            DateFormat('dd MMM').format(date).toUpperCase(),
+                            style: GoogleFonts.bebasNeue(color: Colors.tealAccent, fontSize: 13, letterSpacing: 0.8),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat('EEEE, yyyy').format(date),
+                          style: GoogleFonts.poppins(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00E676).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF00E676).withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.arrow_downward_rounded, color: Color(0xFF00E676), size: 12),
+                          const SizedBox(width: 3),
+                          Text(
+                            '+${dayTotal.toInt()} ৳',
+                            style: GoogleFonts.bebasNeue(color: const Color(0xFF00E676), fontSize: 14, letterSpacing: 0.5),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 15),
+
               // Items List
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   children: items.map((item) {
                     bool isFine = item is FinePayment;
                     bool isDeductibleContrib = item is Contribution && item.isFinePayment;
-                    
+
                     String name = isFine ? item.playerName : item.name;
                     String? playerId = isFine ? item.playerId : item.playerId;
-                    
+
                     dynamic player;
                     if (playerId != null) {
                       try {
@@ -967,39 +1162,105 @@ class _ContributionScreenState extends State<ContributionScreen> with SingleTick
                       } catch (_) {}
                     }
 
-                    String note = isFine 
-                        ? "Fine Collection${item.note != null && item.note!.isNotEmpty ? " | ${item.note!}" : ""}" 
-                        : (isDeductibleContrib ? "(Fine) " : "") + item.ballTape;
+                    String note = isFine
+                        ? (item.note != null && item.note!.isNotEmpty ? item.note! : "Direct Fine Cash Settlement")
+                        : (item.ballTape.isNotEmpty ? item.ballTape : "General Club Support");
                     double amount = isFine ? item.amountPaid : item.taka;
+
+                    Color typeColor = isFine
+                        ? const Color(0xFF00E676)
+                        : (isDeductibleContrib ? Colors.cyanAccent : Colors.purpleAccent);
+                    String typeLabel = isFine
+                        ? 'FINE PAYMENT'
+                        : (isDeductibleContrib ? 'FINE DEDUCTIBLE' : 'CLUB CONTRIBUTION');
+                    IconData typeIcon = isFine
+                        ? Icons.receipt_rounded
+                        : (isDeductibleContrib ? Icons.price_check_rounded : Icons.volunteer_activism_rounded);
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: isFine || isDeductibleContrib ? Color(0xFF00E676).withOpacity(0.2) : Colors.white10),
+                        color: Colors.white.withOpacity(0.03),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withOpacity(0.05)),
                       ),
                       child: Row(
                         children: [
                           CircleAvatar(
-                            radius: 16,
+                            radius: 17,
                             backgroundColor: Colors.white10,
-                            backgroundImage: (player != null && player.photoUrl.isNotEmpty) ? MemoryImage(base64Decode(player.photoUrl)) : null,
-                            child: (player == null || player.photoUrl.isEmpty) ? Text(name[0].toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.tealAccent)) : null,
+                            backgroundImage: (player != null && player.photoUrl.isNotEmpty)
+                                ? MemoryImage(base64Decode(player.photoUrl))
+                                : null,
+                            child: (player == null || player.photoUrl.isEmpty)
+                                ? Text(name[0].toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.tealAccent))
+                                : null,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(StringUtils.capitalize(name), style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        StringUtils.capitalize(name),
+                                        style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: typeColor.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: typeColor.withOpacity(0.3), width: 0.8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(typeIcon, color: typeColor, size: 9),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            typeLabel,
+                                            style: GoogleFonts.bebasNeue(color: typeColor, fontSize: 9.5, letterSpacing: 0.5),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
                                 if (!isGuest)
-                                  Text(note, style: TextStyle(color: isFine || isDeductibleContrib ? Color(0xFF00E676).withOpacity(0.5) : Colors.white38, fontSize: 9)),
+                                  Text(
+                                    note,
+                                    style: GoogleFonts.poppins(color: Colors.white38, fontSize: 10),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                               ],
                             ),
                           ),
-                          Text('${amount.toInt()} ৳', style: GoogleFonts.bebasNeue(color: isFine || isDeductibleContrib ? Color(0xFF00E676) : Colors.white70, fontSize: 18)),
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00E676).withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '+${amount.toInt()} ৳',
+                              style: GoogleFonts.bebasNeue(
+                                color: const Color(0xFF00E676),
+                                fontSize: 17,
+                                letterSpacing: 0.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     );

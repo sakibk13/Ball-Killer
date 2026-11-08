@@ -10,6 +10,8 @@ import '../models/fund.dart';
 import '../utils/date_utils.dart';
 import '../utils/export_service.dart';
 import '../utils/status_dialog.dart';
+import '../providers/room_provider.dart';
+import 'payment_notice_screen.dart';
 
 class FundScreen extends StatefulWidget {
   const FundScreen({super.key});
@@ -44,13 +46,23 @@ class _FundScreenState extends State<FundScreen> {
           elevation: 0,
           actions: [
             IconButton(
+              tooltip: 'bKash & Bank Notice',
+              icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.tealAccent),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PaymentNoticeScreen()),
+              ),
+            ),
+            IconButton(
               icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.tealAccent),
               onPressed: () async {
                 try {
+                  final room = Provider.of<RoomProvider>(context, listen: false).currentRoom;
                   await ExportService.exportFundReport(
                     funds: fundProvider.funds,
                     grandTotal: fundProvider.grandTotal,
                     players: ballProvider.players,
+                    room: room,
                   );
                   if (mounted) {
                     StatusDialog.show(context, title: "SUCCESS", message: "Fund Report Generated!", isSuccess: true);

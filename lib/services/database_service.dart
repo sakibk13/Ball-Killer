@@ -9,7 +9,7 @@ import '../models/fine_payment.dart';
 import '../models/fund.dart';
 import '../models/audit_log.dart';
 import '../models/memory.dart';
-import '../services/cloud_sync_service.dart';
+import '../models/unintentional_record.dart';
 import '../app_config.dart';
 
 class DatabaseService {
@@ -223,13 +223,6 @@ class DatabaseService {
       await _db.collection('users').add(newUser.toMap());
       
       // We no longer automatically add to players until approved
-      
-      // SYNC TO GOOGLE SHEETS
-      CloudSyncService.syncSingleUser(
-        name: user.name,
-        phone: user.phone,
-        password: user.password,
-      );
 
       return true;
     } catch (e) {
@@ -308,14 +301,6 @@ class DatabaseService {
         }
         
         final updated = await _db.collection('players').doc(id).get();
-        
-        // SYNC TO GOOGLE SHEETS
-        CloudSyncService.syncSingleUser(
-          name: player.name,
-          phone: player.phone,
-          password: player.password,
-        );
-
         return updated.exists ? Player.fromMap(updated.data()!, docId: id) : null;
       } else {
         // 2. NEW PLAYER: Check if a USER already exists with this phone/name to link data
@@ -331,13 +316,6 @@ class DatabaseService {
 
         final docRef = await _db.collection('players').add(finalPlayerMap);
         final result = await docRef.get();
-        
-        // SYNC TO GOOGLE SHEETS
-        CloudSyncService.syncSingleUser(
-          name: finalPlayerMap['name'],
-          phone: finalPlayerMap['phone'],
-          password: finalPlayerMap['password'],
-        );
 
         return Player.fromMap(result.data()!, docId: result.id);
       }
@@ -470,9 +448,13 @@ class DatabaseService {
   Future<void> deleteRecord(String recordId, String playerId, int lostCount) async {
     try {
       await _db.collection('records').doc(recordId).delete();
-      await _db.collection('players').doc(playerId).update({
-        'totalLost': FieldValue.increment(-lostCount)
-      });
+      if (playerId.isNotEmpty) {
+        await _db.collection('players').doc(playerId).update({
+          'totalLost': FieldValue.increment(-lostCount)
+        }).catchError((e) {
+          debugPrint('Update player after delete record error: $e');
+        });
+      }
     } catch (e) {
       debugPrint('!!! DELETE RECORD ERROR: $e');
     }
@@ -519,16 +501,6 @@ class DatabaseService {
         await _db.collection('players').doc(playerSnap.docs.first.id).update(updateData);
       }
 
-      // SYNC TO GOOGLE SHEETS
-      if (userSnap.docs.isNotEmpty) {
-        final fullData = userSnap.docs.first.data();
-        CloudSyncService.syncSingleUser(
-          name: name ?? fullData['name'],
-          phone: newPhone ?? phone,
-          password: fullData['password'],
-        );
-      }
-      
       return true;
     } catch (e) {
       debugPrint('!!! UPDATE PROFILE ERROR: $e');
@@ -550,15 +522,6 @@ class DatabaseService {
         await _db.collection('players').doc(playerSnap.docs.first.id).update({'password': newPassword});
       }
 
-      // SYNC TO GOOGLE SHEETS
-      if (userSnap.docs.isNotEmpty) {
-        CloudSyncService.syncSingleUser(
-          name: userSnap.docs.first.data()['name'],
-          phone: phone,
-          password: newPassword,
-        );
-      }
-      
       return true;
     } catch (e) {
       debugPrint('!!! UPDATE PASSWORD ERROR: $e');
@@ -613,6 +576,46 @@ class DatabaseService {
       await _db.collection('memories').doc(id).delete();
     } catch (e) {
       debugPrint('!!! DELETE MEMORY ERROR: $e');
+    }
+  }
+
+  // Unintentional Record operations
+  Future<List<UnintentionalRecord>> getUnintentionalRecords() async {
+    try {
+      final snap = await _db.collection('unintentional_records').orderBy('date', descending: true).get();
+      return snap.docs.map((doc) => UnintentionalRecord.fromMap(doc.data(), docId: doc.id)).toList();
+    } catch (e) {
+      debugPrint('!!! GET UNINTENTIONAL RECORDS ERROR: $e');
+      return [];
+    }
+  }
+
+  Future<bool> addUnintentionalRecord(UnintentionalRecord record) async {
+    try {
+      await _db.collection('unintentional_records').add(record.toMap());
+      return true;
+    } catch (e) {
+      debugPrint('!!! ADD UNINTENTIONAL RECORD ERROR: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateUnintentionalRecord(UnintentionalRecord record) async {
+    try {
+      if (record.id == null) return false;
+      await _db.collection('unintentional_records').doc(record.id!).update(record.toMap());
+      return true;
+    } catch (e) {
+      debugPrint('!!! UPDATE UNINTENTIONAL RECORD ERROR: $e');
+      return false;
+    }
+  }
+
+  Future<void> deleteUnintentionalRecord(String id) async {
+    try {
+      await _db.collection('unintentional_records').doc(id).delete();
+    } catch (e) {
+      debugPrint('!!! DELETE UNINTENTIONAL RECORD ERROR: $e');
     }
   }
 }

@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../providers/auth_provider.dart';
@@ -13,13 +11,14 @@ import '../providers/fund_provider.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/contribution_provider.dart';
 import '../providers/fine_provider.dart';
-import '../services/cloud_sync_service.dart';
+import '../providers/unintentional_provider.dart';
 import '../utils/string_utils.dart';
 import '../utils/status_dialog.dart';
-import '../utils/date_utils.dart';
 import 'leaderboard_screen.dart';
 import 'records_screen.dart';
 import 'player_ball_loss_screen.dart';
+import 'unintentional_loss_screen.dart';
+import 'loss_comparison_screen.dart';
 import 'fine_screen.dart';
 import 'fund_screen.dart';
 import 'inventory_screen.dart';
@@ -30,8 +29,9 @@ import 'manage_players_screen.dart';
 import '../providers/room_provider.dart';
 import 'super_admin_screen.dart';
 import 'profile_screen.dart';
-import 'admin_approvals_screen.dart';
 import 'about_us_screen.dart';
+import 'payment_notice_screen.dart';
+import 'admin_payment_settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -42,7 +42,6 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProviderStateMixin {
   late AnimationController _fadeController;
-  bool _isSyncing = false;
 
   @override
   void initState() {
@@ -56,136 +55,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       Provider.of<FundProvider>(context, listen: false).fetchFunds();
       Provider.of<ContributionProvider>(context, listen: false).fetchContributions();
       Provider.of<FineProvider>(context, listen: false).fetchPayments();
-      
-      _checkSyncStatus();
+      Provider.of<UnintentionalProvider>(context, listen: false).init();
     });
-  }
-
-  void _checkSyncStatus() async {
-    final lastSync = await CloudSyncService.getLastSyncTime();
-    if (lastSync == null) return;
-
-    final diff = DateTime.now().difference(lastSync);
-    if (diff.inHours >= 12) {
-       if (mounted) {
-         showDialog(
-           context: context,
-           builder: (ctx) => BackdropFilter(
-             filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-             child: AlertDialog(
-               backgroundColor: const Color(0xFF020C3B),
-               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25), side: const BorderSide(color: Colors.tealAccent, width: 0.5)),
-               title: Text('CLOUD BACKUP DUE', style: GoogleFonts.bebasNeue(color: Colors.tealAccent, letterSpacing: 1.5)),
-               content: const Text('It has been over 12 hours since your last Google Sheets sync. Back up your data now?', style: TextStyle(color: Colors.white70)),
-               actions: [
-                 TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('LATER', style: TextStyle(color: Colors.white24))),
-                 ElevatedButton(
-                   onPressed: () {
-                     Navigator.pop(ctx);
-                     _syncData();
-                   },
-                   style: ElevatedButton.styleFrom(backgroundColor: Colors.tealAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                   child: Text('SYNC NOW', style: GoogleFonts.bebasNeue(color: const Color(0xFF020C3B), letterSpacing: 1)),
-                 ),
-               ],
-             ),
-           ),
-         );
-       }
-    }
-  }
-
-  Future<void> _syncData() async {
-    setState(() => _isSyncing = true);
-
-    final ballProvider = Provider.of<BallProvider>(context, listen: false);
-    final invProvider = Provider.of<InventoryProvider>(context, listen: false);
-    final fundProvider = Provider.of<FundProvider>(context, listen: false);
-    final contProvider = Provider.of<ContributionProvider>(context, listen: false);
-    final fineProvider = Provider.of<FineProvider>(context, listen: false);
-
-    // ENSURE DATA IS LOADED
-    await ballProvider.refresh();
-    await invProvider.fetchInventory();
-    await fundProvider.fetchFunds();
-    await contProvider.fetchContributions();
-    await fineProvider.fetchPayments();
-
-    final String currentMonth = DateFormat('MMMM yyyy').format(DateTime.now());
-
-    // 1. Gather ALL Monthly Leaderboards
-    final Set<String> monthsWithData = {currentMonth};
-    for (var r in ballProvider.allRecords) {
-      if (r.monthYear.isNotEmpty) monthsWithData.add(DateUtilsHelper.normalizeMonthYear(r.monthYear));
-    }
-
-    Map<String, List<Map<String, dynamic>>> allMonthlyLeaderboards = {};
-    for (var m in monthsWithData) {
-      allMonthlyLeaderboards[m] = ballProvider.getPlayersWithTotals(monthYear: m);
-    }
-
-    final leaderboardOverall = ballProvider.getPlayersWithTotals(monthYear: 'Overall');
-
-    // 2. Player Status Overall (Cumulative) - CONSISTENT LOGIC
-    final playerStatusOverall = ballProvider.players.map((p) {
-      final String playerId = p.id!;
-
-      // A. LIFETIME BALLS & FINE (Using p.totalLost to respect manual edits)
-      final int lifetimeBalls = p.totalLost;
-      final double totalFineOverall = lifetimeBalls * 50.0;
-
-      // B. LIFETIME PAYMENTS (Deductible cash only)
-      final double totalPaidDirectLifetime = fineProvider.payments
-          .where((pay) => pay.playerId == playerId)
-          .fold(0.0, (sum, pay) => sum + pay.amountPaid);
-
-      final double totalFineSpecificContribLifetime = contProvider.contributions
-          .where((c) => c.playerId == playerId && !c.isOther)
-          .fold(0.0, (sum, c) => sum + c.taka);
-
-      final double totalPaidDeductible = totalPaidDirectLifetime + totalFineSpecificContribLifetime;
-
-      // C. FINAL STATUS
-      double due = 0;
-      double credit = 0;
-      if (totalPaidDeductible >= totalFineOverall) {
-        credit = totalPaidDeductible - totalFineOverall;
-      } else {
-        due = totalFineOverall - totalPaidDeductible;
-      }
-
-      return {
-        'name': p.name,
-        'phone': p.phone,
-        'total': lifetimeBalls,
-        'totalFine': totalFineOverall,
-        'paid': totalPaidDeductible,
-        'due': due,
-        'surplus': credit,
-      };
-    }).toList()..sort((a, b) => (b['total'] as int).compareTo(a['total'] as int));
-
-    final result = await CloudSyncService.syncAllData(
-      allMonthlyLeaderboards: allMonthlyLeaderboards,
-      leaderboardOverall: leaderboardOverall,
-      playerStatusOverall: playerStatusOverall,
-      funds: fundProvider.funds,
-      contributions: contProvider.contributions,
-      fines: fineProvider.payments,
-      stock: invProvider.inventoryList,
-      users: ballProvider.players,
-    );
-    setState(() => _isSyncing = false);
-
-    if (mounted) {
-      final bool success = result['success'] == true;
-      StatusDialog.show(
-        context,
-        title: success ? "SYNC SUCCESS" : "SYNC FAILED",
-        message: success ? "Google Sheets updated with Monthly & Overall data." : (result['message'] ?? "Sync failed"),
-        isSuccess: success,
-      );
-    }
   }
 
   @override
@@ -258,6 +129,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 await ballProvider.refresh();
                 await invProvider.fetchInventory();
                 await fundProvider.fetchFunds();
+                if (context.mounted) {
+                  await Provider.of<UnintentionalProvider>(context, listen: false).refresh();
+                }
               },
               color: Colors.tealAccent,
               child: FadeTransition(
@@ -289,8 +163,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                               Container(width: 4, height: 16, decoration: BoxDecoration(color: Colors.tealAccent, borderRadius: BorderRadius.circular(2))),
                               const SizedBox(width: 10),
                               Text('COMMAND CENTER', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 17, letterSpacing: 1.4)),
-                              const Spacer(),
-                              if (isAdmin) _buildSmallSyncButton(),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -308,24 +180,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               ),
             ),
           ),
-          if (_isSyncing)
-            Container(
-              color: Colors.black87,
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircularProgressIndicator(color: Colors.tealAccent, strokeWidth: 2),
-                      const SizedBox(height: 25),
-                      Text('CLOUD DATABASE SYNC', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 22, letterSpacing: 2)),
-                      Text('DO NOT CLOSE THE APPLICATION', style: GoogleFonts.poppins(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -389,6 +243,11 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           ),
         ),
         const SizedBox(width: 8),
+        IconButton(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentNoticeScreen())),
+          icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.tealAccent, size: 20),
+          tooltip: 'Payment Notice & QR',
+        ),
         IconButton(
           onPressed: () => auth.logout(),
           icon: const Icon(Icons.logout_rounded, color: Colors.white38, size: 20),
@@ -560,7 +419,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildQuickActionsGrid(bool isAdmin, bool isGuest, double screenWidth) {
-    int columns = screenWidth > 950 ? 5 : (screenWidth > 600 ? 3 : 2);
+    int columns = screenWidth > 950 ? 4 : (screenWidth > 600 ? 3 : 2);
     double ratio = screenWidth > 950 ? 2.6 : (screenWidth > 600 ? 2.4 : 2.2);
     return GridView.count(
       shrinkWrap: true,
@@ -571,9 +430,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       childAspectRatio: ratio,
       children: [
         _buildActionGridItem('PLAYER FINES', Icons.money_off_rounded, Colors.redAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FineScreen()))),
-        _buildActionGridItem('TRACK OVERVIEW', Icons.assignment_late_outlined, Colors.purpleAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecordsScreen()))),
+        _buildActionGridItem('UNINTENTIONAL', Icons.help_outline_rounded, Colors.purpleAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UnintentionalLossScreen()))),
+        _buildActionGridItem('LOSS ANALYTICS', Icons.analytics_rounded, Colors.tealAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LossComparisonScreen()))),
+        _buildActionGridItem('TRACK OVERVIEW', Icons.assignment_late_outlined, Colors.amberAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecordsScreen()))),
         _buildActionGridItem('LEADERBOARD', Icons.workspace_premium_rounded, Colors.cyanAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()))),
         _buildActionGridItem('PLAYER STATUS', Icons.person_search_rounded, Colors.blueAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerStatusScreen()))),
+        _buildActionGridItem('RECORD LOSS', Icons.sports_cricket_rounded, const Color(0xFF00E676), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerBallLossScreen()))),
         _buildActionGridItem('ABOUT US', Icons.auto_awesome_rounded, Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutUsScreen()))),
       ],
     );
@@ -605,6 +467,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             _buildActionGridItem('TREASURY LOG', Icons.account_balance_rounded, Colors.tealAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FundScreen()))),
             _buildActionGridItem('STOCK LOG', Icons.inventory_2_outlined, Colors.orangeAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen()))),
             _buildActionGridItem('REPORT CENTER', Icons.bar_chart_rounded, Colors.cyanAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportCenterScreen()))),
+            _buildActionGridItem('PAYMENT NOTICE', Icons.qr_code_scanner_rounded, const Color(0xFFE91E63), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentNoticeScreen()))),
+            _buildActionGridItem('EXCEL EXPORT', Icons.table_chart_rounded, const Color(0xFF00E676), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportCenterScreen()))),
           ],
         ),
         if (isAdmin) ...[
@@ -626,8 +490,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             childAspectRatio: ratio,
             children: [
               _buildActionGridItem('RECORD LOSS', Icons.sports_cricket_rounded, Colors.tealAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerBallLossScreen()))),
-              _buildActionGridItem('CLOUD SYNC', Icons.cloud_sync_rounded, Colors.white, () => _showSyncOptions()),
+              _buildActionGridItem('UNINTENTIONAL', Icons.help_outline_rounded, Colors.purpleAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UnintentionalLossScreen()))),
               _buildActionGridItem('MANAGE PLAYERS', Icons.group_outlined, Colors.pinkAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManagePlayersScreen()))),
+              _buildActionGridItem('PAYMENT SETUP', Icons.tune_rounded, Colors.cyanAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPaymentSettingsScreen()))),
               if (auth.isSuperAdmin)
                 _buildActionGridItem('SUPER ADMIN', Icons.admin_panel_settings_rounded, Colors.amberAccent, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminScreen()))),
             ],
@@ -684,52 +549,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSmallSyncButton() {
-    return IconButton(
-      onPressed: () => _syncData(),
-      icon: const Icon(Icons.sync_rounded, color: Colors.tealAccent, size: 20),
-    );
-  }
-
-  void _showSyncOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Color(0xFF020C3B),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('CLOUD CONTROL', style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 24, letterSpacing: 1.5)),
-            const SizedBox(height: 25),
-            _buildSyncOption('FORCE PUSH', 'Sync local data to Google Sheets', Icons.cloud_upload_rounded, Colors.tealAccent, () {
-              Navigator.pop(context);
-              _syncData();
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSyncOption(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
-    return ListTile(
-      onTap: onTap,
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-        child: Icon(icon, color: color),
-      ),
-      title: Text(title, style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 16, letterSpacing: 1)),
-      subtitle: Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 10)),
-      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white24),
     );
   }
 
@@ -835,7 +654,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               controller: nameCtrl,
               style: const TextStyle(color: Colors.white, fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Room Name (e.g. MiniCricket Club)',
+                hintText: 'Room Name (e.g. Sudden Plan Cricket Team)',
                 hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.05),

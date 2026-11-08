@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class BallKillerLogo extends StatelessWidget {
+class BallTerminatorLogo extends StatelessWidget {
   final double size;
   final bool showText;
-  const BallKillerLogo({super.key, this.size = 140, this.showText = true});
+  const BallTerminatorLogo({super.key, this.size = 140, this.showText = true});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,7 @@ class BallKillerLogo extends StatelessWidget {
           ),
           child: ClipOval(
             child: Image.asset(
-              'assets/icon/logo3.png',
+              'assets/logonew.png',
               width: size,
               height: size,
               fit: BoxFit.cover,
@@ -42,7 +42,7 @@ class BallKillerLogo extends StatelessWidget {
         if (showText) ...[
           const SizedBox(height: 12),
           Text(
-            'BALL KILLER',
+            'BALL TERMINATOR',
             style: GoogleFonts.bebasNeue(
               fontSize: size * 0.3,
               color: Colors.white,
@@ -54,3 +54,5 @@ class BallKillerLogo extends StatelessWidget {
     );
   }
 }
+
+typedef BallKillerLogo = BallTerminatorLogo;

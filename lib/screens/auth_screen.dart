@@ -115,7 +115,15 @@ class _AuthScreenState extends State<AuthScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/logo2.png', width: 180, height: 180, errorBuilder: (c, e, s) => const Icon(Icons.sports_cricket, size: 100, color: Colors.orange)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Image.asset('assets/logonew.png', width: 100, height: 100, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.sports_cricket, size: 70, color: Colors.orange)),
+                  const SizedBox(width: 16),
+                  Image.asset('assets/suddenplan.png', width: 100, height: 100, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.shield_outlined, size: 70, color: Colors.tealAccent)),
+                ],
+              ),
               const SizedBox(height: 20),
               Text(
                 quote,
@@ -151,9 +159,17 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset('assets/logo2.png', width: 150, height: 150, errorBuilder: (c, e, s) => const Icon(Icons.sports_cricket, size: 80, color: Colors.orange)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Image.asset('assets/logonew.png', width: 95, height: 95, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.sports_cricket, size: 70, color: Colors.orange)),
+                        const SizedBox(width: 16),
+                        Image.asset('assets/suddenplan.png', width: 95, height: 95, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.shield_outlined, size: 70, color: Colors.tealAccent)),
+                      ],
+                    ),
                     const SizedBox(height: 15),
-                    Text('BALL KILLER', style: GoogleFonts.bebasNeue(fontSize: 42, color: Colors.white, letterSpacing: 3)),
+                    Text('BALL TERMINATOR', style: GoogleFonts.bebasNeue(fontSize: 42, color: Colors.white, letterSpacing: 3)),
                     const SizedBox(height: 6),
                     Text(
                       quote,
@@ -250,7 +266,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _showJoinRoomModal(BuildContext context) {
-    final codeCtrl = TextEditingController(text: 'SPK13');
+    final codeCtrl = TextEditingController();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -276,9 +292,11 @@ class _AuthScreenState extends State<AuthScreen> {
               textCapitalization: TextCapitalization.characters,
               style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 24, letterSpacing: 3),
               decoration: InputDecoration(
-                labelText: 'ROOM CODE (E.G. SPK13)',
+                labelText: 'ROOM CODE',
+                hintText: 'ENTER 6-CHAR CODE',
+                hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
                 labelStyle: const TextStyle(color: Colors.white38, fontSize: 12),
-                prefixIcon: const Icon(Icons.vpn_key_rounded, color: Colors.tealAccent),
+                prefixIcon: const Icon(Icons.meeting_room_outlined, color: Colors.tealAccent),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.05),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
@@ -352,7 +370,7 @@ class _AuthScreenState extends State<AuthScreen> {
               controller: nameCtrl,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                labelText: 'ROOM NAME (E.G. MINICRICKET CLUB)',
+                labelText: 'ROOM NAME (E.G. SUDDEN PLAN CRICKET TEAM)',
                 labelStyle: const TextStyle(color: Colors.white38, fontSize: 12),
                 prefixIcon: const Icon(Icons.meeting_room, color: Colors.amberAccent),
                 filled: true,
@@ -367,7 +385,9 @@ class _AuthScreenState extends State<AuthScreen> {
               textCapitalization: TextCapitalization.characters,
               style: GoogleFonts.bebasNeue(color: Colors.white, fontSize: 22, letterSpacing: 2),
               decoration: InputDecoration(
-                labelText: '6-CHAR ROOM CODE (E.G. SPK13X)',
+                labelText: '6-CHAR ROOM CODE',
+                hintText: 'ENTER 6-CHAR CODE',
+                hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
                 labelStyle: const TextStyle(color: Colors.white38, fontSize: 12),
                 prefixIcon: const Icon(Icons.pin, color: Colors.amberAccent),
                 filled: true,

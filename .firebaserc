@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "ball-killer"
-  }
+  },
+  "targets": {
+    "ball-killer": {
+      "hosting": {
+        "terminator": [
+          "ballterminator"
+        ],
+        "killer": [
+          "ball-killer"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
